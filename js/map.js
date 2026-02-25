@@ -7,6 +7,10 @@ const MAPBOX_TOKEN = 'REDACTED_MAPBOX_TOKEN';
 
 const MapModule = {
   map: null,
+  _lastGeocode: 0,        // timestamp of last geocode call (debounce)
+  _sessionGeocodeCount: 0, // geocode calls this session (rate limit)
+  _SESSION_LIMIT: 50,
+  _DEBOUNCE_MS: 500,
 
   /** Initialize the Mapbox map */
   init() {
@@ -17,6 +21,8 @@ const MapModule = {
       style: 'mapbox://styles/mapbox/satellite-streets-v12',
       center: [-121.1094, 37.4080], // San Jose, CA default
       zoom: 17,
+      minZoom: 10,
+      maxZoom: 19,
       preserveDrawingBuffer: true,
     });
 
@@ -57,6 +63,23 @@ const MapModule = {
           return;
         }
       }
+
+      // Debounce: ignore if called within cooldown period
+      const now = Date.now();
+      if (now - this._lastGeocode < this._DEBOUNCE_MS) {
+        return;
+      }
+
+      // Session rate limit check
+      if (this._sessionGeocodeCount >= this._SESSION_LIMIT) {
+        this._showToast('Search limit reached — please reload or use cached suggestions', 'error');
+        return;
+      }
+
+      // Disable button briefly for visual feedback
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+      setTimeout(() => { btn.disabled = false; btn.style.opacity = ''; }, this._DEBOUNCE_MS);
 
       // Geocoding search
       this._geocode(query);
@@ -113,29 +136,76 @@ const MapModule = {
 
   /** Geocode a search query using Mapbox Geocoding API */
   _geocode(query) {
-    // Check cache first
+    // Check cache first (doesn't count against rate limit)
     const cached = GeoCache.lookup(query);
     if (cached) {
       this.flyTo(cached.lngLat);
       return;
     }
 
+    // Track this API call
+    this._lastGeocode = Date.now();
+    this._sessionGeocodeCount++;
+
+    // Warn when approaching limit
+    if (this._sessionGeocodeCount === 40) {
+      this._showToast('Approaching search limit (40/' + this._SESSION_LIMIT + ')', 'warning');
+    }
+
     const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${mapboxgl.accessToken}&limit=1`;
 
     fetch(url)
-      .then(res => res.json())
+      .then(res => {
+        if (res.status === 429) {
+          this._showToast('Rate limited by Mapbox — please wait a moment and try again', 'error');
+          return null;
+        }
+        if (res.status === 401 || res.status === 403) {
+          this._showToast('Mapbox token is invalid or expired — contact the site owner', 'error');
+          return null;
+        }
+        if (!res.ok) {
+          this._showToast('Search failed (HTTP ' + res.status + ')', 'error');
+          return null;
+        }
+        return res.json();
+      })
       .then(data => {
+        if (!data) return;
+        if (data.message) {
+          // Mapbox returns { message: "..." } for quota/auth errors
+          this._showToast('Mapbox API: ' + data.message, 'error');
+          return;
+        }
         if (data.features && data.features.length > 0) {
           const feature = data.features[0];
           const [lng, lat] = feature.center;
           const displayName = feature.place_name || query;
-          // Store in cache
           GeoCache.store(query, [lng, lat], displayName);
           this.flyTo([lng, lat]);
         } else {
-          alert('Location not found');
+          this._showToast('Location not found', 'warning');
         }
       })
-      .catch(() => alert('Search failed — check your Mapbox token'));
+      .catch(() => {
+        this._showToast('Network error — check your connection and try again', 'error');
+      });
+  },
+
+  /** Show a toast notification */
+  _showToast(message, type) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-' + (type || 'info');
+    toast.textContent = message;
+    container.appendChild(toast);
+
+    // Auto-dismiss after 4 seconds
+    setTimeout(() => {
+      toast.classList.add('toast-fade-out');
+      toast.addEventListener('animationend', () => toast.remove());
+    }, 4000);
   },
 };
