@@ -434,8 +434,9 @@ const App = {
         ctx.stroke();
       } else if (cone.type === 'trailer') {
         if (cone.rotation) ctx.rotate(cone.rotation * Math.PI / 180);
-        const tw = (cone.width || 40) * scale;
-        const th = (cone.height || 20) * scale;
+        const elemScale = Cones._getElementScale(cone);
+        const tw = (cone.width || 40) * scale * elemScale;
+        const th = (cone.height || 20) * scale * elemScale;
         ctx.beginPath();
         ctx.rect(-tw / 2, -th / 2, tw, th);
         ctx.fillStyle = 'rgba(120, 120, 140, 0.8)';
@@ -445,8 +446,9 @@ const App = {
         ctx.stroke();
       } else if (cone.type === 'staging-grid') {
         if (cone.rotation) ctx.rotate(cone.rotation * Math.PI / 180);
-        const gw = (cone.width || 80) * scale;
-        const gh = (cone.height || 50) * scale;
+        const elemScale = Cones._getElementScale(cone);
+        const gw = (cone.width || 80) * scale * elemScale;
+        const gh = (cone.height || 50) * scale * elemScale;
         ctx.setLineDash([4 * scale, 3 * scale]);
         ctx.beginPath();
         ctx.rect(-gw / 2, -gh / 2, gw, gh);

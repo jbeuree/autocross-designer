@@ -13,6 +13,12 @@ const Cones = {
     this._map = map;
     this._onSelect = onSelect;
     this._onUpdate = onUpdate;
+
+    // Update element scales on zoom so trailer/staging-grid scale with the map
+    map.on('zoom', () => this._updateAllElementScales());
+    if (typeof ImageMap !== 'undefined') {
+      map.on('move', () => this._updateAllElementScales());
+    }
   },
 
   /** Find the nearest regular (non-pointer) cone to a given [lng, lat] */
@@ -126,8 +132,13 @@ const Cones = {
       const defaults = type === 'trailer' ? { w: 40, h: 20 } : { w: 80, h: 50 };
       cone.width = defaults.w;
       cone.height = defaults.h;
+      // Store base zoom so element scales proportionally with the map
+      if (App.mode !== 'image') {
+        cone.baseZoom = this._map.getZoom();
+      }
       this._addResizeHandle(cone, el);
       this._addRotateHandle(cone, el);
+      this._updateElementTransform(cone);
     }
 
     // Update lngLat on drag
@@ -223,6 +234,7 @@ const Cones = {
       if (c.width != null) d.width = c.width;
       if (c.height != null) d.height = c.height;
       if (c.rotation) d.rotation = c.rotation;
+      if (c.baseZoom != null) d.baseZoom = c.baseZoom;
       return d;
     });
   },
@@ -235,13 +247,16 @@ const Cones = {
     data.forEach(d => {
       const cone = this.place(d.type, { lng: d.lngLat[0], lat: d.lngLat[1] }, d.lngLat);
       idMap[d.id] = cone;
-      // Restore size and rotation for resizable elements
+      // Restore size, rotation, and base zoom for resizable elements
       if (d.width != null && d.height != null) {
         cone.width = d.width;
         cone.height = d.height;
       }
       if (d.rotation) {
         cone.rotation = d.rotation;
+      }
+      if (d.baseZoom != null) {
+        cone.baseZoom = d.baseZoom;
       }
       if (cone.width || cone.rotation) {
         this._applySize(cone);
@@ -295,10 +310,12 @@ const Cones = {
 
     const onMouseMove = (e) => {
       if (!resizing) return;
-      // In image mode, account for the wrapper scale
+      // Account for both the map/image zoom and the element's own scale
+      const elemScale = this._getElementScale(cone);
       const mapScale = (App.mode === 'image') ? (ImageMap._scale || 1) : 1;
-      const dx = (e.clientX - startX) / mapScale;
-      const dy = (e.clientY - startY) / mapScale;
+      const totalScale = mapScale * elemScale;
+      const dx = (e.clientX - startX) / totalScale;
+      const dy = (e.clientY - startY) / totalScale;
       cone.width = Math.max(20, startW + dx);
       cone.height = Math.max(12, startH + dy);
       if (inner) {
@@ -353,9 +370,7 @@ const Cones = {
         angle = Math.round(angle / 15) * 15;
       }
       cone.rotation = angle;
-      if (inner) {
-        inner.style.transform = `rotate(${angle}deg)`;
-      }
+      this._updateElementTransform(cone);
     };
 
     const onMouseUp = () => {
@@ -368,6 +383,34 @@ const Cones = {
     handle.addEventListener('mousedown', onMouseDown);
   },
 
+  /** Get the current zoom-based scale factor for a resizable element */
+  _getElementScale(cone) {
+    if (App.mode === 'image') {
+      return ImageMap._scale;
+    } else {
+      if (cone.baseZoom == null) return 1;
+      return Math.pow(2, this._map.getZoom() - cone.baseZoom);
+    }
+  },
+
+  /** Update the transform (rotation + scale) on a resizable element */
+  _updateElementTransform(cone) {
+    const inner = cone.marker.getElement().querySelector('.marker-trailer, .marker-staging-grid');
+    if (!inner) return;
+    const s = this._getElementScale(cone);
+    const r = cone.rotation || 0;
+    inner.style.transform = `rotate(${r}deg) scale(${s})`;
+  },
+
+  /** Update scale for all trailer/staging-grid elements */
+  _updateAllElementScales() {
+    for (const c of this.cones) {
+      if (c.type === 'trailer' || c.type === 'staging-grid') {
+        this._updateElementTransform(c);
+      }
+    }
+  },
+
   /** Apply stored size and rotation to a resizable element */
   _applySize(cone) {
     const inner = cone.marker.getElement().querySelector('.marker-trailer, .marker-staging-grid');
@@ -376,9 +419,7 @@ const Cones = {
       inner.style.width = cone.width + 'px';
       inner.style.height = cone.height + 'px';
     }
-    if (cone.rotation) {
-      inner.style.transform = `rotate(${cone.rotation}deg)`;
-    }
+    this._updateElementTransform(cone);
   },
 
   /** Create the HTML element for a cone marker */
