@@ -1,7 +1,7 @@
 // measurements.js — Persistent distance measurements with two-click workflow
 
 const Measurements = {
-  measurements: [],     // { id, points: [[lng,lat],[lng,lat]], markers: [m1, m2], labelEl, sourceId }
+  measurements: [],     // { id, points: [[lng,lat],[lng,lat]], markers: [m1, m2], labelEl, sourceId, svgEl }
   _nextId: 1,
   _map: null,
   _visible: true,
@@ -19,13 +19,15 @@ const Measurements = {
   handleClick(lngLat, screenPoint) {
     // Snap to cone if within 25px
     let point = [lngLat.lng, lngLat.lat];
-    const nearCone = App._findConeNear(screenPoint);
-    if (nearCone) {
-      point = nearCone.lngLat.slice();
+    if (screenPoint) {
+      const nearCone = App._findConeNear(screenPoint);
+      if (nearCone) {
+        point = nearCone.lngLat.slice();
+      }
     }
 
     if (!this._pendingPoint) {
-      // First click
+      // First click — show endpoint and wait for second
       this._pendingPoint = point;
       this._pendingMarker = this._createEndpointMarker(point);
     } else {
@@ -76,7 +78,7 @@ const Measurements = {
 
     // Draw line
     if (App.mode === 'image') {
-      // SVG line inside the image wrapper (not marker container) so it's behind markers
+      // SVG line inside the image wrapper
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.classList.add('measurement-line-svg');
       svg.setAttribute('width', ImageMap._imageWidth);
@@ -98,7 +100,6 @@ const Measurements = {
       line.setAttribute('stroke-dasharray', '8,5');
       svg.appendChild(line);
 
-      // Insert SVG into wrapper (before marker container so markers are on top)
       ImageMap._wrapper.insertBefore(svg, ImageMap._markerContainer);
 
       // Label inside marker container at midpoint
@@ -115,34 +116,48 @@ const Measurements = {
       const measurement = { id, points: [p1, p2], markers: [m1, m2], labelEl, svgEl: svg, sourceId: null };
       this.measurements.push(measurement);
     } else {
-      // Map mode: GeoJSON source + layer
-      this._map.addSource(sourceId, {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          geometry: { type: 'LineString', coordinates: [p1, p2] },
-        },
-      });
+      // Map mode: draw line via a simple SVG overlay on screen, plus label
+      // (Using DOM elements instead of GeoJSON layers for reliability)
+      const svgOverlay = this._createMapLineSVG(p1, p2);
+      document.body.appendChild(svgOverlay);
 
-      this._map.addLayer({
-        id: sourceId,
-        type: 'line',
-        source: sourceId,
-        paint: {
-          'line-color': '#f472b6',
-          'line-width': 2,
-          'line-dasharray': [4, 3],
-        },
-      });
-
-      // Position label on screen
+      // Position label on screen at midpoint
       labelEl.style.pointerEvents = 'auto';
       document.body.appendChild(labelEl);
       this._positionLabel(labelEl, p1, p2);
 
-      const measurement = { id, points: [p1, p2], markers: [m1, m2], labelEl, svgEl: null, sourceId };
+      const measurement = { id, points: [p1, p2], markers: [m1, m2], labelEl, svgEl: svgOverlay, sourceId: null };
       this.measurements.push(measurement);
     }
+  },
+
+  /** Create an SVG line overlay for map mode that we reposition on move */
+  _createMapLineSVG(p1, p2) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.style.position = 'absolute';
+    svg.style.top = '0';
+    svg.style.left = '0';
+    svg.style.width = '100%';
+    svg.style.height = '100%';
+    svg.style.pointerEvents = 'none';
+    svg.style.zIndex = '5';
+    svg.style.overflow = 'visible';
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('stroke', '#f472b6');
+    line.setAttribute('stroke-width', '2.5');
+    line.setAttribute('stroke-dasharray', '6,4');
+    svg.appendChild(line);
+
+    // Position the line
+    const sp1 = this._map.project(p1);
+    const sp2 = this._map.project(p2);
+    line.setAttribute('x1', sp1.x);
+    line.setAttribute('y1', sp1.y);
+    line.setAttribute('x2', sp2.x);
+    line.setAttribute('y2', sp2.y);
+
+    return svg;
   },
 
   /** Create an endpoint marker dot */
@@ -170,7 +185,6 @@ const Measurements = {
     let feet;
     if (App.mode === 'image') {
       if (!ImageMap.hasScale()) {
-        // Show pixel distance as fallback
         const dx = p1[0] - p2[0];
         const dy = p1[1] - p2[1];
         return Math.sqrt(dx * dx + dy * dy).toFixed(0) + ' px';
@@ -193,11 +207,9 @@ const Measurements = {
     labelEl.style.top = (my - 16) + 'px';
   },
 
-  /** Update all label positions (called on pan/zoom) */
+  /** Update all label and line positions (called on pan/zoom) */
   updateAllLabels() {
     if (App.mode === 'image') {
-      // In image mode, labels are inside the marker container and transform with it,
-      // but we need to update the counter-scale
       for (const m of this.measurements) {
         if (m.labelEl && m.labelEl.parentNode) {
           const midX = (m.points[0][0] + m.points[1][0]) / 2;
@@ -210,9 +222,21 @@ const Measurements = {
       return;
     }
 
+    // Map mode: reposition SVG lines and labels
     for (const m of this.measurements) {
       if (m.labelEl && m.labelEl.parentNode) {
         this._positionLabel(m.labelEl, m.points[0], m.points[1]);
+      }
+      if (m.svgEl && m.svgEl.parentNode) {
+        const line = m.svgEl.querySelector('line');
+        if (line) {
+          const sp1 = this._map.project(m.points[0]);
+          const sp2 = this._map.project(m.points[1]);
+          line.setAttribute('x1', sp1.x);
+          line.setAttribute('y1', sp1.y);
+          line.setAttribute('x2', sp2.x);
+          line.setAttribute('y2', sp2.y);
+        }
       }
     }
   },
@@ -231,15 +255,9 @@ const Measurements = {
       m.labelEl.parentNode.removeChild(m.labelEl);
     }
 
-    // Remove line
+    // Remove line SVG
     if (m.svgEl && m.svgEl.parentNode) {
       m.svgEl.parentNode.removeChild(m.svgEl);
-    }
-    if (m.sourceId) {
-      try {
-        this._map.removeLayer(m.sourceId);
-        this._map.removeSource(m.sourceId);
-      } catch (e) { /* ignore if already removed */ }
     }
 
     this.measurements.splice(idx, 1);
@@ -252,16 +270,10 @@ const Measurements = {
       const display = this._visible ? '' : 'none';
       m.markers.forEach(mk => {
         mk.getElement().style.display = display;
-        // For ImageMarker, also hide the container
         if (mk._container) mk._container.style.display = display;
       });
       if (m.labelEl) m.labelEl.style.display = display;
       if (m.svgEl) m.svgEl.style.display = display;
-      if (m.sourceId) {
-        try {
-          this._map.setPaintProperty(m.sourceId, 'line-opacity', this._visible ? 1 : 0);
-        } catch (e) { /* ignore */ }
-      }
     }
     return this._visible;
   },

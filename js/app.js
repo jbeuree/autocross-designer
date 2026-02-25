@@ -1,7 +1,7 @@
 // app.js — App init, state management, event wiring
 
 const App = {
-  activeTool: 'regular',  // current tool: regular, pointer, start-gate, finish-gate, select, drivingline, scale, measure, note, trailer, staging-grid
+  activeTool: 'regular',  // current tool: regular, pointer, start-cone, finish-cone, select, drivingline, scale, measure, note, trailer, staging-grid
   selectedCone: null,
   map: null,
   mode: 'map',           // 'map' or 'image'
@@ -143,8 +143,8 @@ const App = {
     switch (this.activeTool) {
       case 'regular':
       case 'pointer':
-      case 'start-gate':
-      case 'finish-gate':
+      case 'start-cone':
+      case 'finish-cone':
       case 'trailer':
       case 'staging-grid':
         Cones.place(this.activeTool, lngLat);
@@ -410,7 +410,7 @@ const App = {
         ctx.strokeStyle = '#cc7000';
         ctx.lineWidth = 2 * scale;
         ctx.stroke();
-      } else if (cone.type === 'start-gate') {
+      } else if (cone.type === 'start-cone') {
         ctx.beginPath();
         ctx.arc(0, 0, 7 * scale, 0, Math.PI * 2);
         ctx.fillStyle = '#22c55e';
@@ -418,7 +418,7 @@ const App = {
         ctx.strokeStyle = '#16a34a';
         ctx.lineWidth = 2 * scale;
         ctx.stroke();
-      } else if (cone.type === 'finish-gate') {
+      } else if (cone.type === 'finish-cone') {
         ctx.beginPath();
         ctx.rect(-8 * scale, -8 * scale, 16 * scale, 16 * scale);
         ctx.fillStyle = '#888';

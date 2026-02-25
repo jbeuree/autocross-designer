@@ -240,13 +240,13 @@ const Cones = {
 
   /** Get cone count (only actual cone types) */
   count() {
-    const coneTypes = ['regular', 'pointer', 'start-gate', 'finish-gate'];
+    const coneTypes = ['regular', 'pointer', 'start-cone', 'finish-cone'];
     return this.cones.filter(c => coneTypes.includes(c.type)).length;
   },
 
   /** Get element count (non-cone placeable items) */
   elementCount() {
-    const coneTypes = ['regular', 'pointer', 'start-gate', 'finish-gate'];
+    const coneTypes = ['regular', 'pointer', 'start-cone', 'finish-cone'];
     return this.cones.filter(c => !coneTypes.includes(c.type)).length;
   },
 
@@ -322,10 +322,10 @@ const Cones = {
       case 'pointer':
         el.innerHTML = '<div class="marker-pointer"></div>';
         break;
-      case 'start-gate':
+      case 'start-cone':
         el.innerHTML = '<div class="marker-start"></div>';
         break;
-      case 'finish-gate':
+      case 'finish-cone':
         el.innerHTML = '<div class="marker-finish"></div>';
         break;
       case 'trailer':

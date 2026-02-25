@@ -941,12 +941,13 @@ body {
 
 /* ===== Measurement Markers ===== */
 .measurement-endpoint {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   background: #f472b6;
-  border: 1px solid #be185d;
+  border: 2px solid #be185d;
   border-radius: 50%;
   cursor: pointer;
+  box-shadow: 0 0 4px rgba(244, 114, 182, 0.6);
 }
 
 .measurement-label {
