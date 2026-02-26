@@ -22,7 +22,7 @@ const MapModule = {
       center: [-121.1094, 37.4080], // San Jose, CA default
       zoom: 17,
       minZoom: 10,
-      maxZoom: 19,
+      maxZoom: 22,
       preserveDrawingBuffer: true,
     });
 

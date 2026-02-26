@@ -4,6 +4,9 @@ const History = {
   _undoStack: [],
   _redoStack: [],
   _maxSnapshots: 50,
+  _actionCount: 0,
+  _autosaveInterval: 5,  // autosave every N actions
+  _autosaveKey: 'autocross-autosave',
 
   /** Take a snapshot of the current app state and push to undo stack */
   push() {
@@ -15,6 +18,12 @@ const History = {
     // Any new action clears the redo stack
     this._redoStack = [];
     this._updateButtons();
+
+    // Autosave to sessionStorage every N actions
+    this._actionCount++;
+    if (this._actionCount % this._autosaveInterval === 0) {
+      this._autosave();
+    }
   },
 
   /** Undo: restore previous state */
@@ -79,5 +88,56 @@ const History = {
     this._undoStack = [];
     this._redoStack = [];
     this._updateButtons();
+  },
+
+  /** Save current state to sessionStorage */
+  _autosave() {
+    try {
+      const state = this._captureState();
+      // Include mode and map position for full restore
+      const center = App.map.getCenter();
+      state._mode = App.mode;
+      state._imageFileName = App.imageFileName;
+      state._center = center.toArray ? center.toArray() : [center.lng, center.lat];
+      state._zoom = App.map.getZoom();
+      if (App.mode === 'image' && typeof ImageMap !== 'undefined' && ImageMap.hasScale()) {
+        state._imageScale = ImageMap.getScale();
+      }
+      sessionStorage.setItem(this._autosaveKey, JSON.stringify(state));
+    } catch (e) {
+      // sessionStorage full or unavailable — silently ignore
+    }
+  },
+
+  /** Check for and restore autosaved state. Returns true if restored. */
+  restoreAutosave() {
+    try {
+      const raw = sessionStorage.getItem(this._autosaveKey);
+      if (!raw) return false;
+      const state = JSON.parse(raw);
+      // Only restore if same mode
+      if (state._mode && state._mode !== App.mode) return false;
+      if (state.cones) Cones.loadData(state.cones);
+      if (state.drivingLine) DrivingLine.loadData(state.drivingLine);
+      if (state.measurements) Measurements.loadData(state.measurements);
+      if (state.notes) Notes.loadData(state.notes);
+      if (state.obstacles && typeof Obstacles !== 'undefined') Obstacles.loadData(state.obstacles);
+      if (state.workers && typeof Workers !== 'undefined') Workers.loadData(state.workers);
+      if (state._center && state._zoom && App.mode === 'map') {
+        MapModule.flyTo(state._center, state._zoom);
+      }
+      if (state._imageScale && App.mode === 'image') {
+        App._setImageScale(state._imageScale, 'Calibrated (restored)');
+      }
+      App._updateInfo();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  },
+
+  /** Clear the autosave */
+  clearAutosave() {
+    try { sessionStorage.removeItem(this._autosaveKey); } catch (e) {}
   },
 };

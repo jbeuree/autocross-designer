@@ -170,6 +170,12 @@ const App = {
     // Take initial history snapshot
     History.push();
 
+    // Restore autosaved session if no pending import or shared course
+    const pendingImport = sessionStorage.getItem('autocross-pending-import');
+    if (!pendingImport && !this._sharedCourse) {
+      History.restoreAutosave();
+    }
+
     // Apply pending cross-mode import if present
     const pendingRaw = sessionStorage.getItem('autocross-pending-import');
     if (pendingRaw) {
