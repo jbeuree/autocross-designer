@@ -8,6 +8,17 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <!-- Auth Gate -->
+  <div id="auth-gate">
+    <div class="auth-box">
+      <h2 class="auth-title">Autocross Course Designer</h2>
+      <p class="auth-subtitle">Enter access code to continue</p>
+      <input type="password" id="auth-input" placeholder="Access code" autocomplete="off">
+      <button id="auth-submit">Enter</button>
+      <p id="auth-error" class="auth-error hidden">Incorrect code</p>
+    </div>
+  </div>
+
   <!-- Mode Selection Banner -->
   <div id="mode-banner" class="hidden">
     <div id="mode-choices">
@@ -336,6 +347,40 @@
       </div>
     </div>
   </div>
+
+  <script>
+  (function() {
+    const HASH = '81772cfec82d193b376ee636affcd257d68e24257f10ed1506720f205ec41e4d';
+    const KEY = 'autocross-auth';
+    const gate = document.getElementById('auth-gate');
+
+    if (sessionStorage.getItem(KEY) === HASH) {
+      gate.remove();
+      return;
+    }
+
+    async function check() {
+      const input = document.getElementById('auth-input');
+      const val = input.value;
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(val));
+      const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+      if (hex === HASH) {
+        sessionStorage.setItem(KEY, HASH);
+        gate.remove();
+      } else {
+        document.getElementById('auth-error').classList.remove('hidden');
+        input.value = '';
+        input.focus();
+      }
+    }
+
+    document.getElementById('auth-submit').addEventListener('click', check);
+    document.getElementById('auth-input').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') check();
+    });
+    document.getElementById('auth-input').focus();
+  })();
+  </script>
 
   <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
   <script src="js/storage.js"></script>
