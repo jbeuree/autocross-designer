@@ -59,9 +59,17 @@ const Cones = {
     if (!target) return 0;
     const dx = target.lngLat[0] - cone.lngLat[0];
     const dy = target.lngLat[1] - cone.lngLat[1];
-    // In image mode Y increases downward, so negate dy
-    const adjustedDy = (App.mode === 'image') ? -dy : dy;
-    return Math.atan2(dx, adjustedDy) * (180 / Math.PI);
+
+    if (App.mode === 'image') {
+      // Image mode: pixel coords, Y increases downward
+      return Math.atan2(dx, -dy) * (180 / Math.PI);
+    } else {
+      // Map mode: correct for latitude projection distortion
+      // At a given latitude, 1° lng covers less distance than 1° lat
+      const cosLat = Math.cos(cone.lngLat[1] * Math.PI / 180);
+      const correctedDx = dx * cosLat;
+      return Math.atan2(correctedDx, dy) * (180 / Math.PI);
+    }
   },
 
   /** Apply rotation CSS to a pointer cone's marker element */
