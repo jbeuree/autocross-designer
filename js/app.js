@@ -61,7 +61,7 @@ const App = {
       const BASE_ZOOM = 17;
       const updateMarkerScale = () => {
         const zoom = this.map.getZoom();
-        const scale = Math.pow(2, (zoom - BASE_ZOOM) * 0.5);
+        const scale = Math.pow(2, zoom - BASE_ZOOM);
         document.documentElement.style.setProperty('--marker-scale', scale);
       };
       this.map.on('zoom', updateMarkerScale);
