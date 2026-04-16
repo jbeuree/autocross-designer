@@ -83,7 +83,8 @@ class ImageMarker {
     this._container.style.left = this._lngLat.lng + 'px';
     this._container.style.top = this._lngLat.lat + 'px';
     // Counter-scale so markers stay a constant screen size regardless of zoom
-    const scale = this._map ? (this._map._scale || 1) : 1;
+    // const scale = this._map ? (this._map._scale || 1) : 1;
+    const scale = 2;
     this._container.style.transform = `translate(-50%, -50%) scale(${1/scale})`;
   }
 
@@ -542,8 +543,9 @@ const ImageMap = {
         for (let i = 1; i < coords.length; i++) {
           ctx.lineTo(coords[i][0], coords[i][1]);
         }
-        ctx.strokeStyle = '#60a5fa';
-        ctx.lineWidth = 3;
+        // These affect the driving line
+        ctx.strokeStyle = '#060707';
+        ctx.lineWidth = 1;
         ctx.setLineDash([6, 6]);
         ctx.stroke();
         ctx.setLineDash([]);

@@ -889,12 +889,13 @@ const App = {
         : this.map.project(cone.lngLat);
       const x = pos.x * dpr;
       const y = pos.y * dpr;
-      const scale = dpr;
+      let scale = 0.2;
 
       ctx.save();
       ctx.translate(x, y);
 
       if (cone.type === 'pointer') {
+        scale = 0.4;
         const angle = Cones._computePointerRotation(cone);
         ctx.rotate(angle * Math.PI / 180);
         ctx.beginPath();
@@ -905,6 +906,7 @@ const App = {
         ctx.fillStyle = '#a3e635';
         ctx.fill();
       } else if (cone.type === 'regular') {
+        scale = 0.2;
         ctx.beginPath();
         ctx.arc(0, 0, 7 * scale, 0, Math.PI * 2);
         ctx.fillStyle = '#ff8c00';
@@ -913,6 +915,7 @@ const App = {
         ctx.lineWidth = 2 * scale;
         ctx.stroke();
       } else if (cone.type === 'start-cone') {
+        scale = 0.3;
         ctx.beginPath();
         ctx.arc(0, 0, 7 * scale, 0, Math.PI * 2);
         ctx.fillStyle = '#22c55e';
@@ -921,6 +924,7 @@ const App = {
         ctx.lineWidth = 2 * scale;
         ctx.stroke();
       } else if (cone.type === 'finish-cone') {
+        scale = 0.3;
         ctx.beginPath();
         ctx.rect(-8 * scale, -8 * scale, 16 * scale, 16 * scale);
         ctx.fillStyle = '#888';
@@ -997,16 +1001,17 @@ const App = {
         const wx = pos.x * dpr;
         const wy = pos.y * dpr;
 
+        const scale = 0.8;
         ctx.save();
         ctx.beginPath();
-        ctx.arc(wx, wy, 12 * dpr, 0, Math.PI * 2);
+        ctx.arc(wx, wy, 12 * scale, 0, Math.PI * 2);
         ctx.fillStyle = '#3b82f6';
         ctx.fill();
         ctx.strokeStyle = '#1d4ed8';
-        ctx.lineWidth = 2 * dpr;
+        ctx.lineWidth = 2 * scale;
         ctx.stroke();
         ctx.fillStyle = '#fff';
-        ctx.font = `bold ${11 * dpr}px sans-serif`;
+        ctx.font = `bold ${11 * scale}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(String(w.number), wx, wy);
