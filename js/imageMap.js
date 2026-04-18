@@ -486,6 +486,10 @@ const ImageMap = {
         this._redrawLineCanvas();
       },
     };
+    // Redraw if initial data has features
+    if (config.data && config.data.features && config.data.features.length > 0) {
+      this._redrawLineCanvas();
+    }
   },
 
   getSource(id) {

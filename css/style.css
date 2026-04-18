@@ -58,6 +58,27 @@ body {
   padding: 2px 6px;
 }
 
+startfinish-btn {
+ display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #ddd;
+  padding: 6px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.startfinish-btn.active {
+  background: rgba(255,255,255,0.2);
+  border-color: rgba(255,255,255,0.3);
+  color: #fff;
+}
+
 .tool-btn {
   display: flex;
   align-items: center;
@@ -169,6 +190,7 @@ body {
   height: calc(100vh - 20px);
   display: flex;
   transition: transform 0.25s ease;
+  height: 100%;
 }
 
 #sidebar.collapsed {
@@ -186,6 +208,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+#sidebar-options {
+  position: absolute;
+  bottom: 25px;
 }
 
 #sidebar-toggle:hover {
@@ -1308,6 +1335,32 @@ body {
 
 #gate-width-input::-webkit-outer-spin-button,
 #gate-width-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Start-cone width control */
+.start-cone-width-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+}
+
+#start-cone-width-input {
+  width: 48px;
+  padding: 2px 4px;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 4px;
+  background: rgba(255,255,255,0.1);
+  color: #ddd;
+  font-size: 12px;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+
+#start-cone-width-input::-webkit-outer-spin-button,
+#start-cone-width-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }

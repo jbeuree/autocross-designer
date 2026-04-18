@@ -61,11 +61,20 @@
       </button>
       <button class="tool-btn" data-tool="start-cone" title="Start Cone (green)">
         <span class="cone-icon cone-start"></span>
-        Start
+        Start Line
+      </button>
+      <div class="start-cone-width-row">
+        <label class="toolbar-sublabel" for="start-cone-width-input">Width</label>
+        <input type="number" id="start-cone-width-input" min="1" max="100" step="1" value="20">
+        <span class="toolbar-sublabel">ft</span>
+      </div>
+      <button class="tool-btn" data-tool="start-beam" title="Start Beam (green)">
+        <span class="cone-icon cone-start"></span>
+        Start Beam
       </button>
       <button class="tool-btn" data-tool="finish-cone" title="Finish Cone (checkered)">
         <span class="cone-icon cone-finish"></span>
-        Finish
+        Finish Beam
       </button>
     </div>
     <div class="toolbar-section">
@@ -217,6 +226,14 @@
       <div id="notes-list"></div>
       <h3>Workers</h3>
       <div id="workers-list"></div>
+
+      <div id="sidebar-options">
+        <h3>Options</h3>
+        <div id="options-content">
+          <input type="checkbox" id="startfinishcheckbox" name="startfinish">
+          <label for="startfinishcheckbox">Start/Finish Lines</label>
+        </div>
+      </div>
     </div>
   </div>
 

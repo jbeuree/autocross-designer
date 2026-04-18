@@ -57,12 +57,20 @@ const History = {
       notes: Notes.getData(),
       obstacles: typeof Obstacles !== 'undefined' ? Obstacles.getData() : [],
       workers: typeof Workers !== 'undefined' ? Workers.getData() : [],
+      startConePair: App._currentStartConePair.slice(),
     };
   },
 
   /** Restore state from a snapshot */
   _restoreState(snapshot) {
-    if (snapshot.cones) Cones.loadData(snapshot.cones);
+    if (snapshot.cones) {
+      const idMap = Cones.loadData(snapshot.cones);
+      // Restore start cone pair with mapped IDs
+      if (snapshot.startConePair && Array.isArray(snapshot.startConePair)) {
+        App._currentStartConePair = snapshot.startConePair.map(oldId => idMap[oldId]).filter(id => id != null);
+        App._redrawStartConeConnectingLine();
+      }
+    }
     if (snapshot.drivingLine) DrivingLine.loadData(snapshot.drivingLine);
     if (snapshot.measurements) Measurements.loadData(snapshot.measurements);
     if (snapshot.notes) Notes.loadData(snapshot.notes);
@@ -117,7 +125,14 @@ const History = {
       const state = JSON.parse(raw);
       // Only restore if same mode
       if (state._mode && state._mode !== App.mode) return false;
-      if (state.cones) Cones.loadData(state.cones);
+      if (state.cones) {
+        const idMap = Cones.loadData(state.cones);
+        // Restore start cone pair with mapped IDs
+        if (state.startConePair && Array.isArray(state.startConePair)) {
+          App._currentStartConePair = state.startConePair.map(oldId => idMap[oldId]).filter(id => id != null);
+          App._redrawStartConeConnectingLine();
+        }
+      }
       if (state.drivingLine) DrivingLine.loadData(state.drivingLine);
       if (state.measurements) Measurements.loadData(state.measurements);
       if (state.notes) Notes.loadData(state.notes);

@@ -17,6 +17,7 @@ const Sharing = {
 
     data.obstacles = typeof Obstacles !== 'undefined' ? Obstacles.getData() : [];
     data.workers = typeof Workers !== 'undefined' ? Workers.getData() : [];
+    data.startConePair = App._currentStartConePair.slice(); // Include start cone pair
 
     const json = JSON.stringify(data);
     const compressed = this._compress(json);

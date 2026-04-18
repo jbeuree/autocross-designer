@@ -8,17 +8,17 @@ const Cones = {
   _map: null,
   _onSelect: null,   // callback when a cone is selected
   _onUpdate: null,    // callback when cones change
+  _onViewUpdate: null, // callback when view changes (zoom/move)
 
-  init(map, { onSelect, onUpdate }) {
+  init(map, { onSelect, onUpdate, onViewUpdate }) {
     this._map = map;
     this._onSelect = onSelect;
     this._onUpdate = onUpdate;
+    this._onViewUpdate = onViewUpdate;
 
     // Update element scales on zoom so trailer/staging-grid scale with the map
     map.on('zoom', () => this._updateAllElementScales());
-    if (typeof ImageMap !== 'undefined') {
-      map.on('move', () => this._updateAllElementScales());
-    }
+    map.on('move', () => this._updateAllElementScales());
   },
 
   /** Find the nearest regular (non-pointer) cone to a given [lng, lat] */
@@ -288,7 +288,7 @@ const Cones = {
     const idMap = {};
     data.forEach(d => {
       const cone = this.place(d.type, { lng: d.lngLat[0], lat: d.lngLat[1] }, d.lngLat);
-      idMap[d.id] = cone;
+      idMap[d.id] = cone.id; // Map old ID to new ID
       // Restore size, rotation, and base zoom for resizable elements
       if (d.width != null && d.height != null) {
         cone.width = d.width;
@@ -307,21 +307,25 @@ const Cones = {
     // Second pass: restore locked targets (map old IDs to new IDs)
     data.forEach(d => {
       if (d.lockedTargetId != null && idMap[d.id] && idMap[d.lockedTargetId]) {
-        idMap[d.id].lockedTargetId = idMap[d.lockedTargetId].id;
+        const cone = this.cones.find(c => c.id === idMap[d.id]);
+        if (cone) {
+          cone.lockedTargetId = idMap[d.lockedTargetId];
+        }
       }
     });
     this._updateAllPointerRotations();
+    return idMap; // Return the ID mapping
   },
 
   /** Get cone count (only actual cone types) */
   count() {
-    const coneTypes = ['regular', 'pointer', 'start-cone', 'finish-cone'];
+    const coneTypes = ['regular', 'pointer', 'start-cone', 'start-beam', 'finish-cone'];
     return this.cones.filter(c => coneTypes.includes(c.type)).length;
   },
 
   /** Get element count (non-cone placeable items) */
   elementCount() {
-    const coneTypes = ['regular', 'pointer', 'start-cone', 'finish-cone'];
+    const coneTypes = ['regular', 'pointer', 'start-cone', 'start-beam', 'finish-cone'];
     return this.cones.filter(c => !coneTypes.includes(c.type)).length;
   },
 
@@ -451,6 +455,8 @@ const Cones = {
         this._updateElementTransform(c);
       }
     }
+    // Notify about view changes for elements that need redrawing
+    if (this._onViewUpdate) this._onViewUpdate();
   },
 
   /** Apply stored size and rotation to a resizable element */
@@ -478,6 +484,7 @@ const Cones = {
         el.innerHTML = '<div class="marker-pointer"></div>';
         break;
       case 'start-cone':
+      case 'start-beam':
         el.innerHTML = '<div class="marker-start"></div>';
         break;
       case 'finish-cone':

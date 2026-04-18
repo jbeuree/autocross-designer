@@ -6,6 +6,7 @@ const Layers = {
   init() {
     this._layers = {
       cones:       { label: 'Cones',        visible: true },
+      startLine:   { label: 'Start Line',   visible: true },
       obstacles:   { label: 'Obstacles',    visible: true },
       workers:     { label: 'Workers',      visible: true },
       drivingLine: { label: 'Driving Line', visible: true },
@@ -50,6 +51,16 @@ const Layers = {
     switch (key) {
       case 'cones':
         Cones.cones.forEach(c => {
+          // Skip start-cone and start-beam (they have their own layer)
+          if (c.type === 'start-cone' || c.type === 'start-beam') return;
+          c.marker.getElement().style.display = visible ? '' : 'none';
+          if (c.marker._container) c.marker._container.style.display = visible ? '' : 'none';
+        });
+        break;
+      case 'startLine':
+        Cones.cones.forEach(c => {
+          // Only show start-cone and start-beam
+          if (c.type !== 'start-cone' && c.type !== 'start-beam') return;
           c.marker.getElement().style.display = visible ? '' : 'none';
           if (c.marker._container) c.marker._container.style.display = visible ? '' : 'none';
         });

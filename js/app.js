@@ -12,11 +12,15 @@ const App = {
   _slalomStart: null,     // first click for slalom tool
   _slalomEnd: null,       // second click for slalom tool
   _gateCenter: null,      // first click for gate tool
+  _startConeStart: null,  // first click for start-cone tool
   _previewLine: null,     // SVG element for rubber-band preview line
   _previewLabel: null,    // distance label element for preview
   _boxSelecting: false,   // box selection state
   _previousTool: 'regular', // tool to revert to after one-shot select
-
+  _drawStartFinishLines: false, // whether to draw start/finish lines on the map
+  _currentStartConePair: [], // IDs of the current start-cone pair [id1, id2]
+  _startConeLineElement: null, // SVG line connecting the start-cone pair
+  
   async init() {
     // Check for shared course in URL
     const sharedCourse = Sharing.loadFromURL();
@@ -104,7 +108,11 @@ const App = {
   _initModules() {
     Cones.init(this.map, {
       onSelect: (cone) => this._handleConeSelect(cone),
-      onUpdate: () => this._updateInfo(),
+      onUpdate: () => {
+        this._updateInfo();
+        this._redrawStartConeConnectingLine();
+      },
+      onViewUpdate: () => this._redrawStartConeConnectingLine(),
     });
 
     Distance.init(this.map);
@@ -211,12 +219,16 @@ const App = {
     switch (this.activeTool) {
       case 'regular':
       case 'pointer':
-      case 'start-cone':
+      case 'start-beam':
       case 'finish-cone':
       case 'trailer':
       case 'staging-grid':
         History.push();
         Cones.place(this.activeTool, lngLat);
+        break;
+
+      case 'start-cone':
+        this._handleStartConeClick(lngLat);
         break;
 
       case 'gate':
@@ -317,6 +329,12 @@ const App = {
       return;
     }
 
+    // Start-cone preview line
+    if (this.activeTool === 'start-cone' && this._startConeStart) {
+      this._showPreviewLine(this._startConeStart, lngLat);
+      return;
+    }
+
     // Measure tool preview line + real-time distance
     if (this.activeTool === 'measure' && Measurements._pendingPoint) {
       const from = { lng: Measurements._pendingPoint[0], lat: Measurements._pendingPoint[1] };
@@ -409,6 +427,49 @@ const App = {
     Distance.hideLabel();
   },
 
+  /** Draw a thin black line connecting two cones by their lngLat positions */
+  _drawStartConeConnectingLine(cone1LngLat, cone2LngLat) {
+    // Remove existing line
+    if (this._startConeLineElement) {
+      this._startConeLineElement.remove();
+    }
+
+    const p1 = this.map.project(cone1LngLat);
+    const p2 = this.map.project(cone2LngLat);
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:5;pointer-events:none;';
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', p1.x);
+    line.setAttribute('y1', p1.y);
+    line.setAttribute('x2', p2.x);
+    line.setAttribute('y2', p2.y);
+    line.setAttribute('stroke', '#000000');
+    line.setAttribute('stroke-width', '1.5');
+    svg.appendChild(line);
+    document.body.appendChild(svg);
+    this._startConeLineElement = svg;
+  },
+
+  /** Remove the start-cone connecting line */
+  _removeStartConeConnectingLine() {
+    if (this._startConeLineElement) {
+      this._startConeLineElement.remove();
+      this._startConeLineElement = null;
+    }
+  },
+
+  /** Redraw the start-cone connecting line if a pair exists */
+  _redrawStartConeConnectingLine() {
+    if (this._currentStartConePair && this._currentStartConePair.length === 2) {
+      const cone1 = Cones.cones.find(c => c.id === this._currentStartConePair[0]);
+      const cone2 = Cones.cones.find(c => c.id === this._currentStartConePair[1]);
+      if (cone1 && cone2) {
+        this._drawStartConeConnectingLine(cone1.lngLat, cone2.lngLat);
+      }
+    }
+  },
+
   /** Calculate distance in feet between two lngLat points */
   _calcDistanceFeet(from, to) {
     if (this.mode === 'image') {
@@ -473,6 +534,68 @@ const App = {
 
         Cones.place('regular', center, [center.lng + offsetLng, center.lat + offsetLat]);
         Cones.place('regular', center, [center.lng - offsetLng, center.lat - offsetLat]);
+      }
+    }
+  },
+
+  // ===== Start-Cone Tool (Two-Click) =====
+
+  /** Handle start-cone click — first click sets start, second click sets direction and places pair */
+  _handleStartConeClick(lngLat) {
+    if (!this._startConeStart) {
+      this._startConeStart = lngLat;
+      this._showToast('Click to set driving direction for the start line', 'info');
+    } else {
+      const center = this._startConeStart;
+      this._startConeStart = null;
+      this._hidePreviewLine();
+
+      History.push();
+
+      // Remove previous start-cone pair before placing new one
+      for (const id of this._currentStartConePair) {
+        Cones.remove(id);
+      }
+      this._currentStartConePair = [];
+
+      // Calculate angle from center to second click (driving direction)
+      const startConeWidth = parseFloat(document.getElementById('start-cone-width-input').value) || 20;
+      const halfWidth = startConeWidth / 2;
+
+      if (this.mode === 'image') {
+        const scale = ImageMap.hasScale() ? ImageMap.getScale() : 1;
+        const offsetPx = halfWidth / scale;
+        // Angle from center to direction click
+        const dx = lngLat.lng - center.lng;
+        const dy = lngLat.lat - center.lat;
+        const angle = Math.atan2(dy, dx);
+        // Perpendicular offsets (±90°)
+        const perpX = Math.cos(angle + Math.PI / 2) * offsetPx;
+        const perpY = Math.sin(angle + Math.PI / 2) * offsetPx;
+        const cone1 = Cones.place('start-cone', center, [center.lng + perpX, center.lat + perpY]);
+        const cone2 = Cones.place('start-cone', center, [center.lng - perpX, center.lat - perpY]);
+        this._currentStartConePair = [cone1.id, cone2.id];
+        this._drawStartConeConnectingLine(cone1.lngLat, cone2.lngLat);
+      } else {
+        // Map mode: compute offset in degrees
+        const metersPerDegLng = 111320 * Math.cos(center.lat * Math.PI / 180);
+        const metersPerDegLat = 110540;
+        const halfMeters = halfWidth / 3.28084;
+
+        // Angle in degrees (lng/lat space, adjusted for projection)
+        const dx = (lngLat.lng - center.lng) * metersPerDegLng;
+        const dy = (lngLat.lat - center.lat) * metersPerDegLat;
+        const angle = Math.atan2(dy, dx);
+
+        // Perpendicular offsets
+        const perpAngle = angle + Math.PI / 2;
+        const offsetLng = Math.cos(perpAngle) * halfMeters / metersPerDegLng;
+        const offsetLat = Math.sin(perpAngle) * halfMeters / metersPerDegLat;
+
+        const cone1 = Cones.place('start-cone', center, [center.lng + offsetLng, center.lat + offsetLat]);
+        const cone2 = Cones.place('start-cone', center, [center.lng - offsetLng, center.lat - offsetLat]);
+        this._currentStartConePair = [cone1.id, cone2.id];
+        this._drawStartConeConnectingLine(cone1.lngLat, cone2.lngLat);
       }
     }
   },
@@ -726,6 +849,12 @@ const App = {
       this._hidePreviewLine();
     }
 
+    // Cancel start-cone preview if switching away (but keep existing cones and line)
+    if (this.activeTool === 'start-cone' && tool !== 'start-cone') {
+      this._startConeStart = null;
+      this._hidePreviewLine();
+    }
+
     // Re-enable map dragging when leaving select mode
     if (this.activeTool === 'select' && tool !== 'select') {
       if (this.mode === 'map' && this.map.dragPan) {
@@ -822,11 +951,27 @@ const App = {
   _setupSidebar() {
     const sidebar = document.getElementById('sidebar');
     const toggle = document.getElementById('sidebar-toggle');
+    const startFinishCheckbox = document.getElementById('startfinishcheckbox');
 
     toggle.addEventListener('click', () => {
       sidebar.classList.toggle('collapsed');
       toggle.textContent = sidebar.classList.contains('collapsed') ? '\u25B6' : '\u25C4';
     });
+
+    if (startFinishCheckbox) {
+      startFinishCheckbox.addEventListener('change', (e) => {
+        this._handleStartFinishCheckboxChange(e.target.checked);
+      });
+    }
+  },
+
+  /** Handle changes to the start/finish lines checkbox */
+  _handleStartFinishCheckboxChange(checked) {
+    console.log("Start finish toggled to " + checked);
+    this._drawStartFinishLines = checked;
+    if (this.mode === 'map' && this.map && typeof this.map.triggerRepaint === 'function') {
+      this.map.triggerRepaint();
+    }
   },
 
   /** Set up help dialog */
@@ -879,7 +1024,6 @@ const App = {
     // Draw the map (or image in image mode)
     ctx.drawImage(mapCanvas, 0, 0);
 
-    // Draw cones (render markers onto canvas)
     const dpr = this.mode === 'image' ? 1 : window.devicePixelRatio;
     for (const cone of Cones.cones) {
       // Skip if cones layer is hidden
@@ -912,6 +1056,15 @@ const App = {
         ctx.fillStyle = '#ff8c00';
         ctx.fill();
         ctx.strokeStyle = '#cc7000';
+        ctx.lineWidth = 2 * scale;
+        ctx.stroke();
+      } else if (cone.type === 'start-beam') {
+        scale = 0.3;
+        ctx.beginPath();
+        ctx.arc(0, 0, 7 * scale, 0, Math.PI * 2);
+        ctx.fillStyle = '#22c55e';
+        ctx.fill();
+        ctx.strokeStyle = '#16a34a';
         ctx.lineWidth = 2 * scale;
         ctx.stroke();
       } else if (cone.type === 'start-cone') {
@@ -1242,12 +1395,20 @@ const App = {
     data.obstacles = Obstacles.getData();
     data.workers = Workers.getData();
     data.courseOutline = CourseOutline.getData();
+    data.startConePair = this._currentStartConePair.slice(); // Include start cone pair
     return data;
   },
 
   /** Load course data (from save or import) */
   _loadCourseData(data) {
-    if (data.cones) Cones.loadData(data.cones);
+    if (data.cones) {
+      const idMap = Cones.loadData(data.cones);
+      // Restore start cone pair with mapped IDs
+      if (data.startConePair && Array.isArray(data.startConePair)) {
+        this._currentStartConePair = data.startConePair.map(oldId => idMap[oldId]).filter(id => id != null);
+        this._redrawStartConeConnectingLine();
+      }
+    }
     if (data.drivingLine) DrivingLine.loadData(data.drivingLine);
     if (data.measurements) Measurements.loadData(data.measurements);
     if (data.notes) Notes.loadData(data.notes);
@@ -1367,6 +1528,7 @@ const App = {
         Selection.clear();
         this._slalomStart = null;
         this._gateCenter = null;
+        this._startConeStart = null;
         this._hidePreviewLine();
         if (this.activeTool === 'measure') {
           Measurements.cancelPending();
