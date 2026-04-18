@@ -733,6 +733,7 @@ const App = {
         const pylon1 = Cones.place('start-beam', center, [center.lng + perpX, center.lat + perpY]);
         const pylon2 = Cones.place('start-beam', center, [center.lng - perpX, center.lat - perpY]);
         this._currentStartBeamPair = [pylon1.id, pylon2.id];
+        this._updateStartBeamPairRotation();
         this._drawStartBeamConnectingLine(pylon1.lngLat, pylon2.lngLat);
       } else {
         // Map mode: compute offset in degrees
@@ -753,6 +754,7 @@ const App = {
         const pylon1 = Cones.place('start-beam', center, [center.lng + offsetLng, center.lat + offsetLat]);
         const pylon2 = Cones.place('start-beam', center, [center.lng - offsetLng, center.lat - offsetLat]);
         this._currentStartBeamPair = [pylon1.id, pylon2.id];
+        this._updateStartBeamPairRotation();
         this._drawStartBeamConnectingLine(pylon1.lngLat, pylon2.lngLat);
       }
     }
@@ -887,6 +889,31 @@ const App = {
   },
 
   /** Update finish cone pair rotation so flat sides face each other */
+  _updateStartBeamPairRotation() {
+    if (!this._currentStartBeamPair || this._currentStartBeamPair.length !== 2) return;
+    const pylon1 = Cones.cones.find(c => c.id === this._currentStartBeamPair[0]);
+    const pylon2 = Cones.cones.find(c => c.id === this._currentStartBeamPair[1]);
+    if (!pylon1 || !pylon2) return;
+
+    const dx = pylon2.lngLat[0] - pylon1.lngLat[0];
+    const dy = pylon2.lngLat[1] - pylon1.lngLat[1];
+    let angle;
+    if (this.mode === 'image') {
+      angle = Math.atan2(dy, dx) * 180 / Math.PI;
+    } else {
+      const cosLat = Math.cos(pylon1.lngLat[1] * Math.PI / 180);
+      const correctedDx = dx * cosLat;
+      angle = Math.atan2(dy, correctedDx) * 180 / Math.PI;
+    }
+
+    pylon1.rotation = angle;
+    pylon2.rotation = angle;
+    if (typeof Cones !== 'undefined') {
+      Cones._applyStartBeamRotation(pylon1);
+      Cones._applyStartBeamRotation(pylon2);
+    }
+  },
+
   _updateFinishConePairRotation() {
     if (!this._currentFinishConePair || this._currentFinishConePair.length !== 2) return;
     const cone1 = Cones.cones.find(c => c.id === this._currentFinishConePair[0]);
@@ -1385,13 +1412,16 @@ const App = {
       } else if (cone.type === 'start-beam') {
         scale = 0.3;
         const size = 16 * scale;
+        ctx.save();
+        if (cone.rotation) ctx.rotate(cone.rotation * Math.PI / 180);
         ctx.beginPath();
-        ctx.rect(-size/2, -size/2, size, size);
+        ctx.rect(-size / 2, -size / 2, size, size);
         ctx.fillStyle = '#22c55e';
         ctx.fill();
         ctx.strokeStyle = '#16a34a';
         ctx.lineWidth = 2 * scale;
         ctx.stroke();
+        ctx.restore();
       } else if (cone.type === 'start-cone') {
         scale = 0.3;
         ctx.beginPath();
@@ -1811,6 +1841,7 @@ const App = {
       // Restore start beam pair with mapped IDs
       if (data.startBeamPair && Array.isArray(data.startBeamPair)) {
         this._currentStartBeamPair = data.startBeamPair.map(oldId => idMap[oldId]).filter(id => id != null);
+        this._updateStartBeamPairRotation();
         this._redrawStartBeamConnectingLine();
       }
       // Restore finish cone pair with mapped IDs

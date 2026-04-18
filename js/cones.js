@@ -93,6 +93,15 @@ const Cones = {
     }
   },
 
+  _applyStartBeamRotation(cone) {
+    if (cone.type !== 'start-beam') return;
+    const inner = cone.marker.getElement().querySelector('.marker-start-beam');
+    if (inner) {
+      inner.style.transformOrigin = 'center center';
+      inner.style.transform = `rotate(${cone.rotation || 0}deg)`;
+    }
+  },
+
   /** Update rotation for all pointer cones */
   _updateAllPointerRotations() {
     for (const c of this.cones) {
@@ -110,6 +119,16 @@ const Cones = {
       }
     }
   },
+
+  /** Update rotation for all start-beam markers */
+  _updateAllStartBeamRotations() {
+    for (const c of this.cones) {
+      if (c.type === 'start-beam') {
+        this._applyStartBeamRotation(c);
+      }
+    }
+  },
+
 
   /** Place a cone of the given type at lngLat. If exactLngLat is provided, skip snap logic and use those exact coordinates. */
   place(type, lngLat, exactLngLat) {
@@ -238,6 +257,9 @@ const Cones = {
       if (cone.type === 'finish-cone' && typeof App !== 'undefined' && App._updateFinishConePairRotation) {
         App._updateFinishConePairRotation();
       }
+      if (cone.type === 'start-beam' && typeof App !== 'undefined' && App._updateStartBeamPairRotation) {
+        App._updateStartBeamPairRotation();
+      }
       if (this._onUpdate) this._onUpdate();
     });
 
@@ -339,6 +361,7 @@ const Cones = {
     });
     this._updateAllPointerRotations();
     this._updateAllFinishConeRotations();
+    this._updateAllStartBeamRotations();
     return idMap; // Return the ID mapping
   },
 
