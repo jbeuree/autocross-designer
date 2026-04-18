@@ -1566,6 +1566,9 @@ const App = {
       }
     }
 
+    // Draw connecting lines for cone pairs
+    this._drawConnectingLinesForExport(ctx, dpr);
+
     // Draw grid if requested
     if (withGrid && Grid.isActive()) {
       const gridCanvas = document.getElementById('grid-canvas');
@@ -1585,6 +1588,72 @@ const App = {
       a.click();
       URL.revokeObjectURL(url);
     }, 'image/png');
+  },
+
+  /** Draw connecting lines for start cone, start beam, and finish cone pairs on export */
+  _drawConnectingLinesForExport(ctx, dpr) {
+    const drawBlueLine = (cone1LngLat, cone2LngLat) => {
+      const p1pos = this.mode === 'image'
+        ? { x: cone1LngLat[0], y: cone1LngLat[1] }
+        : this.map.project(cone1LngLat);
+      const p2pos = this.mode === 'image'
+        ? { x: cone2LngLat[0], y: cone2LngLat[1] }
+        : this.map.project(cone2LngLat);
+      
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(p1pos.x * dpr, p1pos.y * dpr);
+      ctx.lineTo(p2pos.x * dpr, p2pos.y * dpr);
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 1.5 * dpr;
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    const drawBlackLine = (cone1LngLat, cone2LngLat) => {
+      const p1pos = this.mode === 'image'
+        ? { x: cone1LngLat[0], y: cone1LngLat[1] }
+        : this.map.project(cone1LngLat);
+      const p2pos = this.mode === 'image'
+        ? { x: cone2LngLat[0], y: cone2LngLat[1] }
+        : this.map.project(cone2LngLat);
+      
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(p1pos.x * dpr, p1pos.y * dpr);
+      ctx.lineTo(p2pos.x * dpr, p2pos.y * dpr);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1.5 * dpr;
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    // Draw start cone connecting line (black)
+    if (this._currentStartConePair && this._currentStartConePair.length === 2) {
+      const cone1 = Cones.cones.find(c => c.id === this._currentStartConePair[0]);
+      const cone2 = Cones.cones.find(c => c.id === this._currentStartConePair[1]);
+      if (cone1 && cone2) {
+        drawBlackLine(cone1.lngLat, cone2.lngLat);
+      }
+    }
+
+    // Draw start beam connecting line (blue)
+    if (this._currentStartBeamPair && this._currentStartBeamPair.length === 2) {
+      const pylon1 = Cones.cones.find(c => c.id === this._currentStartBeamPair[0]);
+      const pylon2 = Cones.cones.find(c => c.id === this._currentStartBeamPair[1]);
+      if (pylon1 && pylon2) {
+        drawBlueLine(pylon1.lngLat, pylon2.lngLat);
+      }
+    }
+
+    // Draw finish cone connecting line (blue)
+    if (this._currentFinishConePair && this._currentFinishConePair.length === 2) {
+      const cone1 = Cones.cones.find(c => c.id === this._currentFinishConePair[0]);
+      const cone2 = Cones.cones.find(c => c.id === this._currentFinishConePair[1]);
+      if (cone1 && cone2) {
+        drawBlueLine(cone1.lngLat, cone2.lngLat);
+      }
+    }
   },
 
   /** Draw a scale bar on the export canvas */
