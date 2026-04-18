@@ -229,7 +229,8 @@ const Cones = {
     el.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      this.remove(id);
+      App.handleConeDelete(id);
+      // this.remove(id);
     });
 
     this._updateAllPointerRotations();
@@ -239,6 +240,7 @@ const Cones = {
 
   /** Remove a cone by id */
   remove(id) {
+    console.log('Removing cone with id in cones.js remove:', id);
     const idx = this.cones.findIndex(c => c.id === id);
     if (idx === -1) return;
     this.cones[idx].marker.remove();

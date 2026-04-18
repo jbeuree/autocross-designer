@@ -20,6 +20,12 @@ const App = {
   _drawStartFinishLines: false, // whether to draw start/finish lines on the map
   _currentStartConePair: [], // IDs of the current start-cone pair [id1, id2]
   _startConeLineElement: null, // SVG line connecting the start-cone pair
+  _currentStartBeamPair: [], // IDs of the current start-beam pair [id1, id2]
+  _startBeamLineElement: null, // SVG line connecting the start-beam pair
+  _startBeamStart: null,  // first click for start-beam tool
+  _currentFinishConePair: [], // IDs of the current finish-cone pair [id1, id2]
+  _finishConeLineElement: null, // SVG line connecting the finish-cone pair
+  _finishConeStart: null,  // first click for finish-cone tool
   
   async init() {
     // Check for shared course in URL
@@ -111,8 +117,14 @@ const App = {
       onUpdate: () => {
         this._updateInfo();
         this._redrawStartConeConnectingLine();
+        this._redrawStartBeamConnectingLine();
+        this._redrawFinishConeConnectingLine();
       },
-      onViewUpdate: () => this._redrawStartConeConnectingLine(),
+      onViewUpdate: () => {
+        this._redrawStartConeConnectingLine();
+        this._redrawStartBeamConnectingLine();
+        this._redrawFinishConeConnectingLine();
+      },
     });
 
     Distance.init(this.map);
@@ -219,12 +231,18 @@ const App = {
     switch (this.activeTool) {
       case 'regular':
       case 'pointer':
-      case 'start-beam':
-      case 'finish-cone':
       case 'trailer':
       case 'staging-grid':
         History.push();
         Cones.place(this.activeTool, lngLat);
+        break;
+
+      case 'start-beam':
+        this._handleStartBeamClick(lngLat);
+        break;
+
+      case 'finish-cone':
+        this._handleFinishConeClick(lngLat);
         break;
 
       case 'start-cone':
@@ -309,6 +327,46 @@ const App = {
     Distance.hideLabel();
   },
 
+  /** Handle deletion of a cone, removing pairs and lines if necessary */
+  handleConeDelete(coneId) {
+    console.log('Deleting cone with ID:', coneId);
+    // Check if this cone is part of a start cone pair
+    if (this._currentStartConePair.includes(coneId)) {
+      const idsToRemove = [...this._currentStartConePair];
+      this._currentStartConePair = [];
+      this._removeStartConeConnectingLine();
+      for (const id of idsToRemove) {
+        Cones.remove(id);
+      }
+      return;
+    }
+
+    // Check if this cone is part of a start beam pair
+    if (this._currentStartBeamPair.includes(coneId)) {
+      const idsToRemove = [...this._currentStartBeamPair];
+      this._currentStartBeamPair = [];
+      this._removeStartBeamConnectingLine();
+      for (const id of idsToRemove) {
+        Cones.remove(id);
+      }
+      return;
+    }
+
+    // Check if this cone is part of a finish cone pair
+    if (this._currentFinishConePair.includes(coneId)) {
+      const idsToRemove = [...this._currentFinishConePair];
+      this._currentFinishConePair = [];
+      this._removeFinishConeConnectingLine();
+      for (const id of idsToRemove) {
+        Cones.remove(id);
+      }
+      return;
+    }
+
+    // Regular cone deletion
+    Cones.remove(coneId);
+  },
+
   /** Handle mousemove for distance labels and preview lines */
   _handleMouseMove(e) {
     const lngLat = e.lngLat;
@@ -332,6 +390,18 @@ const App = {
     // Start-cone preview line
     if (this.activeTool === 'start-cone' && this._startConeStart) {
       this._showPreviewLine(this._startConeStart, lngLat);
+      return;
+    }
+
+    // Start-beam preview line
+    if (this.activeTool === 'start-beam' && this._startBeamStart) {
+      this._showPreviewLine(this._startBeamStart, lngLat);
+      return;
+    }
+
+    // Finish-cone preview line
+    if (this.activeTool === 'finish-cone' && this._finishConeStart) {
+      this._showPreviewLine(this._finishConeStart, lngLat);
       return;
     }
 
@@ -459,6 +529,92 @@ const App = {
     }
   },
 
+  /** Draw a blue line connecting two start-beam pylons by their lngLat positions */
+  _drawStartBeamConnectingLine(pylon1LngLat, pylon2LngLat) {
+    // Remove existing line
+    if (this._startBeamLineElement) {
+      this._startBeamLineElement.remove();
+    }
+
+    const p1 = this.map.project(pylon1LngLat);
+    const p2 = this.map.project(pylon2LngLat);
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:5;pointer-events:none;';
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', p1.x);
+    line.setAttribute('y1', p1.y);
+    line.setAttribute('x2', p2.x);
+    line.setAttribute('y2', p2.y);
+    line.setAttribute('stroke', '#3b82f6');
+    line.setAttribute('stroke-width', '1.5');
+    svg.appendChild(line);
+    document.body.appendChild(svg);
+    this._startBeamLineElement = svg;
+  },
+
+  /** Remove the start-beam connecting line */
+  _removeStartBeamConnectingLine() {
+    if (this._startBeamLineElement) {
+      this._startBeamLineElement.remove();
+      this._startBeamLineElement = null;
+    }
+  },
+
+  /** Redraw the start-beam connecting line if a pair exists */
+  _redrawStartBeamConnectingLine() {
+    if (this._currentStartBeamPair && this._currentStartBeamPair.length === 2) {
+      const pylon1 = Cones.cones.find(c => c.id === this._currentStartBeamPair[0]);
+      const pylon2 = Cones.cones.find(c => c.id === this._currentStartBeamPair[1]);
+      if (pylon1 && pylon2) {
+        this._drawStartBeamConnectingLine(pylon1.lngLat, pylon2.lngLat);
+      }
+    }
+  },
+
+  /** Draw a blue line connecting two finish cones by their lngLat positions */
+  _drawFinishConeConnectingLine(cone1LngLat, cone2LngLat) {
+    // Remove existing line
+    if (this._finishConeLineElement) {
+      this._finishConeLineElement.remove();
+    }
+
+    const p1 = this.map.project(cone1LngLat);
+    const p2 = this.map.project(cone2LngLat);
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:5;pointer-events:none;';
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', p1.x);
+    line.setAttribute('y1', p1.y);
+    line.setAttribute('x2', p2.x);
+    line.setAttribute('y2', p2.y);
+    line.setAttribute('stroke', '#3b82f6');
+    line.setAttribute('stroke-width', '1.5');
+    svg.appendChild(line);
+    document.body.appendChild(svg);
+    this._finishConeLineElement = svg;
+  },
+
+  /** Remove the finish-cone connecting line */
+  _removeFinishConeConnectingLine() {
+    if (this._finishConeLineElement) {
+      this._finishConeLineElement.remove();
+      this._finishConeLineElement = null;
+    }
+  },
+
+  /** Redraw the finish-cone connecting line if a pair exists */
+  _redrawFinishConeConnectingLine() {
+    if (this._currentFinishConePair && this._currentFinishConePair.length === 2) {
+      const cone1 = Cones.cones.find(c => c.id === this._currentFinishConePair[0]);
+      const cone2 = Cones.cones.find(c => c.id === this._currentFinishConePair[1]);
+      if (cone1 && cone2) {
+        this._drawFinishConeConnectingLine(cone1.lngLat, cone2.lngLat);
+      }
+    }
+  },
+
   /** Redraw the start-cone connecting line if a pair exists */
   _redrawStartConeConnectingLine() {
     if (this._currentStartConePair && this._currentStartConePair.length === 2) {
@@ -538,6 +694,70 @@ const App = {
     }
   },
 
+  // ===== Start-Beam Tool (Two-Click) =====
+
+  /** Handle start-beam click — first click sets start, second click sets direction and places pair */
+  _handleStartBeamClick(lngLat) {
+    if (!this._startBeamStart) {
+      this._startBeamStart = lngLat;
+      this._showToast('Click to set driving direction for the start beam', 'info');
+    } else {
+      const center = this._startBeamStart;
+      this._startBeamStart = null;
+      this._hidePreviewLine();
+
+      History.push();
+
+      // Remove previous start-beam pair before placing new one
+      for (const id of this._currentStartBeamPair) {
+        Cones.remove(id);
+      }
+      this._currentStartBeamPair = [];
+
+      // Calculate angle from center to second click (driving direction)
+      // Start beam width is 50% larger than start-cone width
+      const startConeWidth = parseFloat(document.getElementById('start-cone-width-input').value) || 20;
+      const startBeamWidth = startConeWidth * 1.5;
+      const halfWidth = startBeamWidth / 2;
+
+      if (this.mode === 'image') {
+        const scale = ImageMap.hasScale() ? ImageMap.getScale() : 1;
+        const offsetPx = halfWidth / scale;
+        // Angle from center to direction click
+        const dx = lngLat.lng - center.lng;
+        const dy = lngLat.lat - center.lat;
+        const angle = Math.atan2(dy, dx);
+        // Perpendicular offsets (±90°)
+        const perpX = Math.cos(angle + Math.PI / 2) * offsetPx;
+        const perpY = Math.sin(angle + Math.PI / 2) * offsetPx;
+        const pylon1 = Cones.place('start-beam', center, [center.lng + perpX, center.lat + perpY]);
+        const pylon2 = Cones.place('start-beam', center, [center.lng - perpX, center.lat - perpY]);
+        this._currentStartBeamPair = [pylon1.id, pylon2.id];
+        this._drawStartBeamConnectingLine(pylon1.lngLat, pylon2.lngLat);
+      } else {
+        // Map mode: compute offset in degrees
+        const metersPerDegLng = 111320 * Math.cos(center.lat * Math.PI / 180);
+        const metersPerDegLat = 110540;
+        const halfMeters = halfWidth / 3.28084;
+
+        // Angle in degrees (lng/lat space, adjusted for projection)
+        const dx = (lngLat.lng - center.lng) * metersPerDegLng;
+        const dy = (lngLat.lat - center.lat) * metersPerDegLat;
+        const angle = Math.atan2(dy, dx);
+
+        // Perpendicular offsets
+        const perpAngle = angle + Math.PI / 2;
+        const offsetLng = Math.cos(perpAngle) * halfMeters / metersPerDegLng;
+        const offsetLat = Math.sin(perpAngle) * halfMeters / metersPerDegLat;
+
+        const pylon1 = Cones.place('start-beam', center, [center.lng + offsetLng, center.lat + offsetLat]);
+        const pylon2 = Cones.place('start-beam', center, [center.lng - offsetLng, center.lat - offsetLat]);
+        this._currentStartBeamPair = [pylon1.id, pylon2.id];
+        this._drawStartBeamConnectingLine(pylon1.lngLat, pylon2.lngLat);
+      }
+    }
+  },
+
   // ===== Start-Cone Tool (Two-Click) =====
 
   /** Handle start-cone click — first click sets start, second click sets direction and places pair */
@@ -596,6 +816,70 @@ const App = {
         const cone2 = Cones.place('start-cone', center, [center.lng - offsetLng, center.lat - offsetLat]);
         this._currentStartConePair = [cone1.id, cone2.id];
         this._drawStartConeConnectingLine(cone1.lngLat, cone2.lngLat);
+      }
+    }
+  },
+
+  // ===== Finish-Cone Tool (Two-Click) =====
+
+  /** Handle finish-cone click — first click sets start, second click sets direction and places pair */
+  _handleFinishConeClick(lngLat) {
+    if (!this._finishConeStart) {
+      this._finishConeStart = lngLat;
+      this._showToast('Click to set driving direction for the finish line', 'info');
+    } else {
+      const center = this._finishConeStart;
+      this._finishConeStart = null;
+      this._hidePreviewLine();
+
+      History.push();
+
+      // Remove previous finish-cone pair before placing new one
+      for (const id of this._currentFinishConePair) {
+        Cones.remove(id);
+      }
+      this._currentFinishConePair = [];
+
+      // Calculate angle from center to second click (driving direction)
+      // Finish cone width is 50% larger than start-cone width
+      const startConeWidth = parseFloat(document.getElementById('start-cone-width-input').value) || 20;
+      const finishConeWidth = startConeWidth * 1.5;
+      const halfWidth = finishConeWidth / 2;
+
+      if (this.mode === 'image') {
+        const scale = ImageMap.hasScale() ? ImageMap.getScale() : 1;
+        const offsetPx = halfWidth / scale;
+        // Angle from center to direction click
+        const dx = lngLat.lng - center.lng;
+        const dy = lngLat.lat - center.lat;
+        const angle = Math.atan2(dy, dx);
+        // Perpendicular offsets (±90°)
+        const perpX = Math.cos(angle + Math.PI / 2) * offsetPx;
+        const perpY = Math.sin(angle + Math.PI / 2) * offsetPx;
+        const cone1 = Cones.place('finish-cone', center, [center.lng + perpX, center.lat + perpY]);
+        const cone2 = Cones.place('finish-cone', center, [center.lng - perpX, center.lat - perpY]);
+        this._currentFinishConePair = [cone1.id, cone2.id];
+        this._drawFinishConeConnectingLine(cone1.lngLat, cone2.lngLat);
+      } else {
+        // Map mode: compute offset in degrees
+        const metersPerDegLng = 111320 * Math.cos(center.lat * Math.PI / 180);
+        const metersPerDegLat = 110540;
+        const halfMeters = halfWidth / 3.28084;
+
+        // Angle in degrees (lng/lat space, adjusted for projection)
+        const dx = (lngLat.lng - center.lng) * metersPerDegLng;
+        const dy = (lngLat.lat - center.lat) * metersPerDegLat;
+        const angle = Math.atan2(dy, dx);
+
+        // Perpendicular offsets
+        const perpAngle = angle + Math.PI / 2;
+        const offsetLng = Math.cos(perpAngle) * halfMeters / metersPerDegLng;
+        const offsetLat = Math.sin(perpAngle) * halfMeters / metersPerDegLat;
+
+        const cone1 = Cones.place('finish-cone', center, [center.lng + offsetLng, center.lat + offsetLat]);
+        const cone2 = Cones.place('finish-cone', center, [center.lng - offsetLng, center.lat - offsetLat]);
+        this._currentFinishConePair = [cone1.id, cone2.id];
+        this._drawFinishConeConnectingLine(cone1.lngLat, cone2.lngLat);
       }
     }
   },
@@ -852,6 +1136,18 @@ const App = {
     // Cancel start-cone preview if switching away (but keep existing cones and line)
     if (this.activeTool === 'start-cone' && tool !== 'start-cone') {
       this._startConeStart = null;
+      this._hidePreviewLine();
+    }
+
+    // Cancel start-beam preview if switching away (but keep existing cones and line)
+    if (this.activeTool === 'start-beam' && tool !== 'start-beam') {
+      this._startBeamStart = null;
+      this._hidePreviewLine();
+    }
+
+    // Cancel finish-cone preview if switching away (but keep existing cones and line)
+    if (this.activeTool === 'finish-cone' && tool !== 'finish-cone') {
+      this._finishConeStart = null;
       this._hidePreviewLine();
     }
 
@@ -1396,6 +1692,8 @@ const App = {
     data.workers = Workers.getData();
     data.courseOutline = CourseOutline.getData();
     data.startConePair = this._currentStartConePair.slice(); // Include start cone pair
+    data.startBeamPair = this._currentStartBeamPair.slice(); // Include start beam pair
+    data.finishConePair = this._currentFinishConePair.slice(); // Include finish cone pair
     return data;
   },
 
@@ -1407,6 +1705,16 @@ const App = {
       if (data.startConePair && Array.isArray(data.startConePair)) {
         this._currentStartConePair = data.startConePair.map(oldId => idMap[oldId]).filter(id => id != null);
         this._redrawStartConeConnectingLine();
+      }
+      // Restore start beam pair with mapped IDs
+      if (data.startBeamPair && Array.isArray(data.startBeamPair)) {
+        this._currentStartBeamPair = data.startBeamPair.map(oldId => idMap[oldId]).filter(id => id != null);
+        this._redrawStartBeamConnectingLine();
+      }
+      // Restore finish cone pair with mapped IDs
+      if (data.finishConePair && Array.isArray(data.finishConePair)) {
+        this._currentFinishConePair = data.finishConePair.map(oldId => idMap[oldId]).filter(id => id != null);
+        this._redrawFinishConeConnectingLine();
       }
     }
     if (data.drivingLine) DrivingLine.loadData(data.drivingLine);
@@ -1516,7 +1824,7 @@ const App = {
           Selection.deleteSelected();
         } else if (this.selectedCone) {
           History.push();
-          Cones.remove(this.selectedCone.id);
+          this.handleConeDelete(this.selectedCone.id);
           this._deselectCone();
         }
         return;

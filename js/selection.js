@@ -74,10 +74,11 @@ const Selection = {
     if (this._selected.length === 0) return;
     History.push();
 
+    console.log('Deleting selected items:', this._selected);
     for (const item of this._selected) {
       switch (item.type) {
         case 'cone':
-          Cones.remove(item.id);
+          App._handleConeDelete(item.id);
           break;
         case 'obstacle':
           if (typeof Obstacles !== 'undefined') Obstacles.removeObstacle(item.id);
