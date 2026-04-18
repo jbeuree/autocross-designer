@@ -83,11 +83,30 @@ const Cones = {
     }
   },
 
+  /** Apply rotation for a finish cone marker */
+  _applyFinishConeRotation(cone) {
+    if (cone.type !== 'finish-cone') return;
+    const inner = cone.marker.getElement().querySelector('.marker-finish');
+    if (inner) {
+      inner.style.transformOrigin = 'center center';
+      inner.style.transform = `rotate(${cone.rotation || 0}deg)`;
+    }
+  },
+
   /** Update rotation for all pointer cones */
   _updateAllPointerRotations() {
     for (const c of this.cones) {
       if (c.type === 'pointer') {
         this._applyPointerRotation(c);
+      }
+    }
+  },
+
+  /** Update rotation for all finish cone markers */
+  _updateAllFinishConeRotations() {
+    for (const c of this.cones) {
+      if (c.type === 'finish-cone') {
+        this._applyFinishConeRotation(c);
       }
     }
   },
@@ -216,6 +235,9 @@ const Cones = {
       }
 
       this._updateAllPointerRotations();
+      if (cone.type === 'finish-cone' && typeof App !== 'undefined' && App._updateFinishConePairRotation) {
+        App._updateFinishConePairRotation();
+      }
       if (this._onUpdate) this._onUpdate();
     });
 
@@ -316,6 +338,7 @@ const Cones = {
       }
     });
     this._updateAllPointerRotations();
+    this._updateAllFinishConeRotations();
     return idMap; // Return the ID mapping
   },
 
@@ -486,8 +509,10 @@ const Cones = {
         el.innerHTML = '<div class="marker-pointer"></div>';
         break;
       case 'start-cone':
-      case 'start-beam':
         el.innerHTML = '<div class="marker-start"></div>';
+        break;
+      case 'start-beam':
+        el.innerHTML = '<div class="marker-start-beam"></div>';
         break;
       case 'finish-cone':
         el.innerHTML = '<div class="marker-finish"></div>';

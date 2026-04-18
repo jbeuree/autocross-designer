@@ -331,6 +331,14 @@ startfinish-btn {
   border-radius: 50%;
 }
 
+.marker-start-beam {
+  width: 9px;
+  height: 9px;
+  background: #22c55e;
+  border: 1px solid #16a34a;
+  border-radius: 2px;
+}
+
 .marker-finish {
   width: 9px;
   height: 9px;

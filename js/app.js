@@ -859,6 +859,7 @@ const App = {
         const cone1 = Cones.place('finish-cone', center, [center.lng + perpX, center.lat + perpY]);
         const cone2 = Cones.place('finish-cone', center, [center.lng - perpX, center.lat - perpY]);
         this._currentFinishConePair = [cone1.id, cone2.id];
+        this._updateFinishConePairRotation();
         this._drawFinishConeConnectingLine(cone1.lngLat, cone2.lngLat);
       } else {
         // Map mode: compute offset in degrees
@@ -879,8 +880,35 @@ const App = {
         const cone1 = Cones.place('finish-cone', center, [center.lng + offsetLng, center.lat + offsetLat]);
         const cone2 = Cones.place('finish-cone', center, [center.lng - offsetLng, center.lat - offsetLat]);
         this._currentFinishConePair = [cone1.id, cone2.id];
+        this._updateFinishConePairRotation();
         this._drawFinishConeConnectingLine(cone1.lngLat, cone2.lngLat);
       }
+    }
+  },
+
+  /** Update finish cone pair rotation so flat sides face each other */
+  _updateFinishConePairRotation() {
+    if (!this._currentFinishConePair || this._currentFinishConePair.length !== 2) return;
+    const cone1 = Cones.cones.find(c => c.id === this._currentFinishConePair[0]);
+    const cone2 = Cones.cones.find(c => c.id === this._currentFinishConePair[1]);
+    if (!cone1 || !cone2) return;
+
+    const dx = cone2.lngLat[0] - cone1.lngLat[0];
+    const dy = cone2.lngLat[1] - cone1.lngLat[1];
+    let angle;
+    if (this.mode === 'image') {
+      angle = Math.atan2(dy, dx) * 180 / Math.PI;
+    } else {
+      const cosLat = Math.cos(cone1.lngLat[1] * Math.PI / 180);
+      const correctedDx = dx * cosLat;
+      angle = Math.atan2(dy, correctedDx) * 180 / Math.PI;
+    }
+
+    cone1.rotation = angle;
+    cone2.rotation = angle;
+    if (typeof Cones !== 'undefined') {
+      Cones._applyFinishConeRotation(cone1);
+      Cones._applyFinishConeRotation(cone2);
     }
   },
 
@@ -1356,8 +1384,9 @@ const App = {
         ctx.stroke();
       } else if (cone.type === 'start-beam') {
         scale = 0.3;
+        const size = 16 * scale;
         ctx.beginPath();
-        ctx.arc(0, 0, 7 * scale, 0, Math.PI * 2);
+        ctx.rect(-size/2, -size/2, size, size);
         ctx.fillStyle = '#22c55e';
         ctx.fill();
         ctx.strokeStyle = '#16a34a';
@@ -1374,13 +1403,17 @@ const App = {
         ctx.stroke();
       } else if (cone.type === 'finish-cone') {
         scale = 0.3;
+        const size = 16 * scale;
+        ctx.save();
+        if (cone.rotation) ctx.rotate(cone.rotation * Math.PI / 180);
         ctx.beginPath();
-        ctx.rect(-8 * scale, -8 * scale, 16 * scale, 16 * scale);
+        ctx.rect(-size / 2, -size / 2, size, size);
         ctx.fillStyle = '#888';
         ctx.fill();
         ctx.strokeStyle = '#666';
         ctx.lineWidth = 1 * scale;
         ctx.stroke();
+        ctx.restore();
       } else if (cone.type === 'trailer') {
         if (cone.rotation) ctx.rotate(cone.rotation * Math.PI / 180);
         const elemScale = Cones._getElementScale(cone);
@@ -1783,6 +1816,7 @@ const App = {
       // Restore finish cone pair with mapped IDs
       if (data.finishConePair && Array.isArray(data.finishConePair)) {
         this._currentFinishConePair = data.finishConePair.map(oldId => idMap[oldId]).filter(id => id != null);
+        this._updateFinishConePairRotation();
         this._redrawFinishConeConnectingLine();
       }
     }
