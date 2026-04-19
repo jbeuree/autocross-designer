@@ -241,7 +241,7 @@ const App = {
         History.push();
         const cone = Cones.place(this.activeTool, lngLat);
         if (this.activeTool === 'trailer') {
-          const text = prompt('Enter text to display on the trailer:', '');
+          const text = prompt('Enter text to display:', '');
           cone.text = text || '';
           Cones._updateTrailerText(cone);
         }
@@ -1486,13 +1486,15 @@ const App = {
         const elemScale = Cones._getElementScale(cone);
         const tw = (cone.width || 40) * elemScale * dpr / 2;
         const th = (cone.height || 20) * elemScale * dpr / 2;
-        ctx.beginPath();
-        ctx.rect(-tw / 2, -th / 2, tw, th);
-        ctx.fillStyle = 'rgba(120, 120, 140, 0.8)';
-        ctx.fill();
-        ctx.strokeStyle = '#666';
-        ctx.lineWidth = 2 * dpr;
-        ctx.stroke();
+        if (!cone.clearBackground) {
+          ctx.beginPath();
+          ctx.rect(-tw / 2, -th / 2, tw, th);
+          ctx.fillStyle = 'rgba(120, 120, 140, 0.8)';
+          ctx.fill();
+          ctx.strokeStyle = '#666';
+          ctx.lineWidth = 2 * dpr;
+          ctx.stroke();
+        }
         if (cone.text) {
           ctx.fillStyle = '#000';
           ctx.textAlign = 'center';

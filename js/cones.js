@@ -175,12 +175,13 @@ const Cones = {
     }
 
     const el = this._createElement(type);
+    const clearBackground = type === 'trailer' && !exactLngLat ? confirm('Should this trailer have a clear background?') : false;
 
     const marker = window.createMarker({ element: el, draggable: true })
       .setLngLat([placeLng, placeLat])
       .addTo(this._map);
 
-    const cone = { id, type, lngLat: [placeLng, placeLat], marker, lockedTargetId: null, width: null, height: null, rotation: 0 };
+    const cone = { id, type, lngLat: [placeLng, placeLat], marker, lockedTargetId: null, width: null, height: null, rotation: 0, clearBackground };
     this.cones.push(cone);
 
     // Add resize and rotate handles for resizable elements
@@ -195,6 +196,9 @@ const Cones = {
       this._addResizeHandle(cone, el);
       this._addRotateHandle(cone, el);
       this._updateElementTransform(cone);
+      if (type === 'trailer') {
+        this._updateTrailerStyle(cone);
+      }
     }
 
     // Group drag: start tracking when drag begins on a multi-selected cone
@@ -323,6 +327,7 @@ const Cones = {
       if (c.height != null) d.height = c.height;
       if (c.rotation) d.rotation = c.rotation;
       if (c.baseZoom != null) d.baseZoom = c.baseZoom;
+      if (c.clearBackground) d.clearBackground = c.clearBackground;
       if (c.text) d.text = c.text;
       return d;
     });
@@ -347,12 +352,18 @@ const Cones = {
       if (d.baseZoom != null) {
         cone.baseZoom = d.baseZoom;
       }
+      if ('clearBackground' in d) {
+        cone.clearBackground = d.clearBackground;
+      }
       if (cone.width || cone.rotation) {
         this._applySize(cone);
       }
       if ('text' in d) {
         cone.text = d.text;
         this._updateTrailerText(cone);
+      }
+      if (cone.type === 'trailer') {
+        this._updateTrailerStyle(cone);
       }
     });
     // Second pass: restore locked targets (map old IDs to new IDs)
@@ -530,6 +541,19 @@ const Cones = {
     this._updateElementTransform(cone);
     if (cone.type === 'trailer') {
       this._updateTrailerText(cone);
+      this._updateTrailerStyle(cone);
+    }
+  },
+
+  /** Apply clear-background styling to a trailer */
+  _updateTrailerStyle(cone) {
+    if (cone.type !== 'trailer') return;
+    const inner = cone.marker.getElement().querySelector('.marker-trailer');
+    if (!inner) return;
+    if (cone.clearBackground) {
+      inner.classList.add('clear-background');
+    } else {
+      inner.classList.remove('clear-background');
     }
   },
 

@@ -984,6 +984,11 @@ startfinish-btn {
   overflow: hidden;
 }
 
+.marker-trailer.clear-background {
+  background: transparent !important;
+  border: none !important;
+}
+
 .trailer-text {
   white-space: nowrap;
   overflow: hidden;
