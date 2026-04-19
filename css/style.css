@@ -326,8 +326,8 @@ startfinish-btn {
 .marker-start {
   width: 8px;
   height: 8px;
-  background: #22c55e;
-  border: 1px solid #16a34a;
+  background: #ff8c00;
+  border: 1px solid #cc7000;
   border-radius: 50%;
 }
 

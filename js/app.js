@@ -1447,9 +1447,9 @@ const App = {
         scale = 0.3;
         ctx.beginPath();
         ctx.arc(0, 0, 7 * scale, 0, Math.PI * 2);
-        ctx.fillStyle = blackCones ? '#000' : '#22c55e';
+        ctx.fillStyle = blackCones ? '#000' : '#ff8c00';
         ctx.fill();
-        ctx.strokeStyle = blackCones ? '#000' : '#16a34a';
+        ctx.strokeStyle = blackCones ? '#000' : '#cc7000';
         ctx.lineWidth = 2 * scale;
         ctx.stroke();
       } else if (cone.type === 'finish-cone') {
