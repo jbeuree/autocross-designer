@@ -1,5 +1,7 @@
 // app.js — App init, state management, event wiring
 
+const finishConeSize = 16;
+const startBeamConeSize = 16;
 const App = {
   activeTool: 'regular',  // current tool
   selectedCone: null,
@@ -115,10 +117,10 @@ const App = {
     Cones.init(this.map, {
       onSelect: (cone) => this._handleConeSelect(cone),
       onUpdate: () => {
-        this._updateInfo();
         this._redrawStartConeConnectingLine();
         this._redrawStartBeamConnectingLine();
         this._redrawFinishConeConnectingLine();
+        this._updateInfo();
       },
       onViewUpdate: () => {
         this._redrawStartConeConnectingLine();
@@ -733,8 +735,8 @@ const App = {
         const pylon1 = Cones.place('start-beam', center, [center.lng + perpX, center.lat + perpY]);
         const pylon2 = Cones.place('start-beam', center, [center.lng - perpX, center.lat - perpY]);
         this._currentStartBeamPair = [pylon1.id, pylon2.id];
-        this._updateStartBeamPairRotation();
         this._drawStartBeamConnectingLine(pylon1.lngLat, pylon2.lngLat);
+        this._updateStartBeamPairRotation();
       } else {
         // Map mode: compute offset in degrees
         const metersPerDegLng = 111320 * Math.cos(center.lat * Math.PI / 180);
@@ -754,8 +756,8 @@ const App = {
         const pylon1 = Cones.place('start-beam', center, [center.lng + offsetLng, center.lat + offsetLat]);
         const pylon2 = Cones.place('start-beam', center, [center.lng - offsetLng, center.lat - offsetLat]);
         this._currentStartBeamPair = [pylon1.id, pylon2.id];
-        this._updateStartBeamPairRotation();
         this._drawStartBeamConnectingLine(pylon1.lngLat, pylon2.lngLat);
+        this._updateStartBeamPairRotation();
       }
     }
   },
@@ -861,8 +863,8 @@ const App = {
         const cone1 = Cones.place('finish-cone', center, [center.lng + perpX, center.lat + perpY]);
         const cone2 = Cones.place('finish-cone', center, [center.lng - perpX, center.lat - perpY]);
         this._currentFinishConePair = [cone1.id, cone2.id];
-        this._updateFinishConePairRotation();
         this._drawFinishConeConnectingLine(cone1.lngLat, cone2.lngLat);
+        this._updateFinishConePairRotation();
       } else {
         // Map mode: compute offset in degrees
         const metersPerDegLng = 111320 * Math.cos(center.lat * Math.PI / 180);
@@ -882,8 +884,8 @@ const App = {
         const cone1 = Cones.place('finish-cone', center, [center.lng + offsetLng, center.lat + offsetLat]);
         const cone2 = Cones.place('finish-cone', center, [center.lng - offsetLng, center.lat - offsetLat]);
         this._currentFinishConePair = [cone1.id, cone2.id];
-        this._updateFinishConePairRotation();
         this._drawFinishConeConnectingLine(cone1.lngLat, cone2.lngLat);
+        this._updateFinishConePairRotation();
       }
     }
   },
@@ -1376,6 +1378,10 @@ const App = {
     ctx.drawImage(mapCanvas, 0, 0);
 
     const dpr = this.mode === 'image' ? 1 : window.devicePixelRatio;
+
+    // Draw connecting lines for cone pairs
+    this._drawConnectingLinesForExport(ctx, dpr);
+
     for (const cone of Cones.cones) {
       // Skip if cones layer is hidden
       if (!Layers.isVisible('cones')) continue;
@@ -1411,7 +1417,7 @@ const App = {
         ctx.stroke();
       } else if (cone.type === 'start-beam') {
         scale = 0.3;
-        const size = 16 * scale;
+        const size = startBeamConeSize * scale;
         ctx.save();
         if (cone.rotation) ctx.rotate(cone.rotation * Math.PI / 180);
         ctx.beginPath();
@@ -1433,12 +1439,34 @@ const App = {
         ctx.stroke();
       } else if (cone.type === 'finish-cone') {
         scale = 0.3;
-        const size = 16 * scale;
+        const size = finishConeSize * scale;
+        const patternCanvas = document.createElement('canvas');
+        patternCanvas.width = 8;
+        patternCanvas.height = 8;
+        const pctx = patternCanvas.getContext('2d');
+        if (pctx) {
+          pctx.fillStyle = '#000';
+          pctx.fillRect(0, 0, 8, 8);
+          pctx.fillStyle = '#fff';
+          pctx.beginPath();
+          pctx.moveTo(0, 0);
+          pctx.lineTo(8, 0);
+          pctx.lineTo(8, 4);
+          pctx.closePath();
+          pctx.fill();
+          pctx.beginPath();
+          pctx.moveTo(0, 4);
+          pctx.lineTo(4, 8);
+          pctx.lineTo(0, 8);
+          pctx.closePath();
+          pctx.fill();
+        }
+        const pattern = pctx ? ctx.createPattern(patternCanvas, 'repeat') : '#888';
         ctx.save();
         if (cone.rotation) ctx.rotate(cone.rotation * Math.PI / 180);
         ctx.beginPath();
         ctx.rect(-size / 2, -size / 2, size, size);
-        ctx.fillStyle = '#888';
+        ctx.fillStyle = pattern;
         ctx.fill();
         ctx.strokeStyle = '#666';
         ctx.lineWidth = 1 * scale;
@@ -1629,9 +1657,6 @@ const App = {
       }
     }
 
-    // Draw connecting lines for cone pairs
-    this._drawConnectingLinesForExport(ctx, dpr);
-
     // Draw grid if requested
     if (withGrid && Grid.isActive()) {
       const gridCanvas = document.getElementById('grid-canvas');
@@ -1714,7 +1739,7 @@ const App = {
       const cone1 = Cones.cones.find(c => c.id === this._currentFinishConePair[0]);
       const cone2 = Cones.cones.find(c => c.id === this._currentFinishConePair[1]);
       if (cone1 && cone2) {
-        drawBlueLine(cone1.lngLat, cone2.lngLat);
+         drawBlueLine(cone1.lngLat, cone2.lngLat);
       }
     }
   },
@@ -1841,14 +1866,14 @@ const App = {
       // Restore start beam pair with mapped IDs
       if (data.startBeamPair && Array.isArray(data.startBeamPair)) {
         this._currentStartBeamPair = data.startBeamPair.map(oldId => idMap[oldId]).filter(id => id != null);
-        this._updateStartBeamPairRotation();
         this._redrawStartBeamConnectingLine();
+        this._updateStartBeamPairRotation();
       }
       // Restore finish cone pair with mapped IDs
       if (data.finishConePair && Array.isArray(data.finishConePair)) {
         this._currentFinishConePair = data.finishConePair.map(oldId => idMap[oldId]).filter(id => id != null);
-        this._updateFinishConePairRotation();
         this._redrawFinishConeConnectingLine();
+        this._updateFinishConePairRotation();
       }
     }
     if (data.drivingLine) DrivingLine.loadData(data.drivingLine);
