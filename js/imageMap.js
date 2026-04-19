@@ -534,11 +534,12 @@ const ImageMap = {
     ctx.clearRect(0, 0, this._lineCanvas.width, this._lineCanvas.height);
 
     const lineSources = [
-      { sourceId: 'driving-line-source',  color: '#060707' },
-      { sourceId: 'driving-line2-source', color: '#060707' },
+      { sourceId: 'driving-line-source',  color: '#060707', layerKey: 'drivingLine' },
+      { sourceId: 'driving-line2-source', color: '#060707', layerKey: 'drivingLine2' },
     ];
 
-    for (const { sourceId, color } of lineSources) {
+    for (const { sourceId, color, layerKey } of lineSources) {
+      if (!Layers.isVisible(layerKey)) continue;
       const src = this._sources[sourceId];
       if (!src || !src._data || !src._data.features) continue;
 

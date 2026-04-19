@@ -1884,7 +1884,6 @@ const App = {
     const data = Storage.serialize(
       Cones.getData(),
       DrivingLine.getData(),
-      DrivingLine2.getData(),
       Measurements.getData(),
       Notes.getData(),
       center.toArray ? center.toArray() : [center.lng, center.lat],
@@ -1898,6 +1897,7 @@ const App = {
     data.startConePair = this._currentStartConePair.slice(); // Include start cone pair
     data.startBeamPair = this._currentStartBeamPair.slice(); // Include start beam pair
     data.finishConePair = this._currentFinishConePair.slice(); // Include finish cone pair
+    data.drivingLine2 = DrivingLine2.getData();
     return data;
   },
 

@@ -87,8 +87,7 @@ const Layers = {
             App.map.setPaintProperty('driving-line-layer', 'line-opacity', visible ? 1 : 0);
           } catch (e) {}
         } else {
-          const lineCanvas = ImageMap._lineCanvas;
-          if (lineCanvas) lineCanvas.style.display = visible ? '' : 'none';
+          ImageMap._redrawLineCanvas();
         }
         break;
       case 'drivingLine2':
@@ -100,6 +99,8 @@ const Layers = {
           try {
             App.map.setPaintProperty('driving-line2-layer', 'line-opacity', visible ? 1 : 0);
           } catch (e) {}
+        } else {
+          ImageMap._redrawLineCanvas();
         }
         break;
       case 'measurements':
