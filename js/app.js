@@ -138,6 +138,10 @@ const App = {
       onUpdate: () => this._updateInfo(),
     });
 
+    DrivingLine2.init(this.map, {
+      onUpdate: () => this._updateInfo(),
+    });
+
     Measurements.init(this.map);
     CourseOutline.init(this.map);
 
@@ -294,6 +298,11 @@ const App = {
       case 'drivingline':
         History.push();
         DrivingLine.addWaypoint(lngLat);
+        break;
+
+      case 'drivingline2':
+        History.push();
+        DrivingLine2.addWaypoint(lngLat);
         break;
 
       case 'measure':
@@ -1192,6 +1201,11 @@ const App = {
       DrivingLine.clear();
     });
 
+    document.getElementById('btn-clear-line2').addEventListener('click', () => {
+      History.push();
+      DrivingLine2.clear();
+    });
+
     // Undo/Redo buttons
     document.getElementById('btn-undo').addEventListener('click', () => History.undo());
     document.getElementById('btn-redo').addEventListener('click', () => History.redo());
@@ -1870,6 +1884,7 @@ const App = {
     const data = Storage.serialize(
       Cones.getData(),
       DrivingLine.getData(),
+      DrivingLine2.getData(),
       Measurements.getData(),
       Notes.getData(),
       center.toArray ? center.toArray() : [center.lng, center.lat],
@@ -1909,6 +1924,7 @@ const App = {
       }
     }
     if (data.drivingLine) DrivingLine.loadData(data.drivingLine);
+    if (data.drivingLine2) DrivingLine2.loadData(data.drivingLine2);
     if (data.measurements) Measurements.loadData(data.measurements);
     if (data.notes) Notes.loadData(data.notes);
     if (data.obstacles) Obstacles.loadData(data.obstacles);
@@ -1976,6 +1992,17 @@ const App = {
         : 'Line: -- ft';
     }
 
+    const lineLen2 = Distance.totalLength(DrivingLine2.waypoints);
+    if (document.getElementById('line2-length')) {
+      if (lineLen2 < 0) {
+        document.getElementById('line2-length').textContent = 'Line 2: N/A';
+      } else {
+        document.getElementById('line2-length').textContent = lineLen2 > 0
+          ? `Line 2: ${lineLen2.toFixed(0)} ft`
+          : 'Line 2: -- ft';
+      }
+    }
+
     Notes.renderSidebar();
     Workers.renderSidebar();
     Venue.renderSidebar();
@@ -2041,7 +2068,7 @@ const App = {
 
       // Number keys 1-9 for quick tool select
       if (e.key >= '1' && e.key <= '9' && !e.ctrlKey && !e.metaKey) {
-        const tools = ['regular', 'pointer', 'start-cone', 'finish-cone', 'select', 'drivingline', 'measure', 'note', 'gate'];
+        const tools = ['regular', 'pointer', 'start-cone', 'finish-cone', 'select', 'drivingline', 'drivingline2', 'measure', 'note', 'gate'];
         const idx = parseInt(e.key) - 1;
         if (idx < tools.length) {
           this._setActiveTool(tools[idx]);

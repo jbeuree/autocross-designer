@@ -379,6 +379,15 @@ startfinish-btn {
   cursor: pointer;
 }
 
+.waypoint-marker2 {
+  width: 8px;
+  height: 8px;
+  background: #60a5fa;
+  border-color: #3bf68c;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
 /* Search Suggestions Dropdown */
 #search-suggestions {
   position: absolute;

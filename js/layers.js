@@ -10,6 +10,7 @@ const Layers = {
       obstacles:   { label: 'Obstacles',    visible: true },
       workers:     { label: 'Workers',      visible: true },
       drivingLine: { label: 'Driving Line', visible: true },
+      drivingLine2: { label: 'Driving Line 2', visible: true },
       measurements:{ label: 'Measurements', visible: true },
       notes:       { label: 'Notes',        visible: true },
       courseOutline:{ label: 'Course Outline', visible: true },
@@ -88,6 +89,17 @@ const Layers = {
         } else {
           const lineCanvas = ImageMap._lineCanvas;
           if (lineCanvas) lineCanvas.style.display = visible ? '' : 'none';
+        }
+        break;
+      case 'drivingLine2':
+        DrivingLine2.waypoints.forEach(wp => {
+          wp.marker.getElement().style.display = visible ? '' : 'none';
+          if (wp.marker._container) wp.marker._container.style.display = visible ? '' : 'none';
+        });
+        if (App.mode === 'map') {
+          try {
+            App.map.setPaintProperty('driving-line2-layer', 'line-opacity', visible ? 1 : 0);
+          } catch (e) {}
         }
         break;
       case 'measurements':

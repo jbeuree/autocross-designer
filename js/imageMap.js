@@ -533,26 +533,31 @@ const ImageMap = {
     const ctx = this._lineCanvas.getContext('2d');
     ctx.clearRect(0, 0, this._lineCanvas.width, this._lineCanvas.height);
 
-    // Find the driving line source
-    const src = this._sources['driving-line-source'];
-    if (!src || !src._data || !src._data.features) return;
+    const lineSources = [
+      { sourceId: 'driving-line-source',  color: '#060707' },
+      { sourceId: 'driving-line2-source', color: '#060707' },
+    ];
 
-    for (const feature of src._data.features) {
-      if (feature.geometry && feature.geometry.type === 'LineString') {
-        const coords = feature.geometry.coordinates;
-        if (coords.length < 2) continue;
+    for (const { sourceId, color } of lineSources) {
+      const src = this._sources[sourceId];
+      if (!src || !src._data || !src._data.features) continue;
 
-        ctx.beginPath();
-        ctx.moveTo(coords[0][0], coords[0][1]);
-        for (let i = 1; i < coords.length; i++) {
-          ctx.lineTo(coords[i][0], coords[i][1]);
+      for (const feature of src._data.features) {
+        if (feature.geometry && feature.geometry.type === 'LineString') {
+          const coords = feature.geometry.coordinates;
+          if (coords.length < 2) continue;
+
+          ctx.beginPath();
+          ctx.moveTo(coords[0][0], coords[0][1]);
+          for (let i = 1; i < coords.length; i++) {
+            ctx.lineTo(coords[i][0], coords[i][1]);
+          }
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1;
+          ctx.setLineDash([6, 6]);
+          ctx.stroke();
+          ctx.setLineDash([]);
         }
-        // These affect the driving line
-        ctx.strokeStyle = '#060707';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([6, 6]);
-        ctx.stroke();
-        ctx.setLineDash([]);
       }
     }
   },

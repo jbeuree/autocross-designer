@@ -1,10 +1,10 @@
-// drivingline.js — Driving line drawing tool with smooth spline
+// drivingline2.js — Second driving line drawing tool with smooth spline
 
-const DrivingLine = {
+const DrivingLine2 = {
   waypoints: [],    // { lngLat: [lng, lat], marker }
   _map: null,
-  _sourceId: 'driving-line-source',
-  _layerId: 'driving-line-layer',
+  _sourceId: 'driving-line2-source',
+  _layerId: 'driving-line2-layer',
   _onUpdate: null,
 
   init(map, { onUpdate }) {
@@ -35,7 +35,7 @@ const DrivingLine = {
       type: 'line',
       source: this._sourceId,
       paint: {
-        'line-color': '#60a5fa',
+        'line-color': '#f97316',
         'line-width': 3,
         'line-dasharray': [2, 2],
       },
@@ -45,7 +45,7 @@ const DrivingLine = {
   /** Add a waypoint at the given lngLat */
   addWaypoint(lngLat) {
     const el = document.createElement('div');
-    el.className = 'waypoint-marker';
+    el.className = 'waypoint-marker2';
 
     const marker = window.createMarker({ element: el, draggable: true })
       .setLngLat(lngLat)
