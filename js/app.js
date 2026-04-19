@@ -1318,27 +1318,11 @@ const App = {
   _setupSidebar() {
     const sidebar = document.getElementById('sidebar');
     const toggle = document.getElementById('sidebar-toggle');
-    const startFinishCheckbox = document.getElementById('startfinishcheckbox');
 
     toggle.addEventListener('click', () => {
       sidebar.classList.toggle('collapsed');
       toggle.textContent = sidebar.classList.contains('collapsed') ? '\u25B6' : '\u25C4';
     });
-
-    if (startFinishCheckbox) {
-      startFinishCheckbox.addEventListener('change', (e) => {
-        this._handleStartFinishCheckboxChange(e.target.checked);
-      });
-    }
-  },
-
-  /** Handle changes to the start/finish lines checkbox */
-  _handleStartFinishCheckboxChange(checked) {
-    console.log("Start finish toggled to " + checked);
-    this._drawStartFinishLines = checked;
-    if (this.mode === 'map' && this.map && typeof this.map.triggerRepaint === 'function') {
-      this.map.triggerRepaint();
-    }
   },
 
   /** Set up help dialog */
