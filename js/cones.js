@@ -479,6 +479,10 @@ const Cones = {
 
   /** Get the current zoom-based scale factor for a resizable element */
   _getElementScale(cone) {
+    if (cone.type === 'trailer') {
+      // Trailers don't scale with map zoom, but do scale in image mode
+      return 1;
+    }
     if (App.mode === 'image') {
       return ImageMap._scale;
     } else {
