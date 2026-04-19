@@ -350,7 +350,7 @@ const Cones = {
       if (cone.width || cone.rotation) {
         this._applySize(cone);
       }
-      if (d.text) {
+      if ('text' in d) {
         cone.text = d.text;
         this._updateTrailerText(cone);
       }

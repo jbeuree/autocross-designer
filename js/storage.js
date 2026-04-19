@@ -44,6 +44,7 @@ const Storage = {
         if (c.width != null) d.width = c.width;
         if (c.height != null) d.height = c.height;
         if (c.rotation) d.rotation = c.rotation;
+        if (c.text != null) d.text = c.text;
         return d;
       }),
       drivingLine: drivingLine.map(wp => ({ lngLat: wp.lngLat })),
