@@ -243,7 +243,12 @@ const App = {
         const cone = Cones.place(this.activeTool, lngLat);
         if (this.activeTool === 'trailer' || this.activeTool === 'cleartext') {
           const text = prompt('Enter text to display:', '');
-          cone.text = text || '';
+          if ((text === null) || (this.activeTool === 'cleartext' && text.trim() === '')) {
+            Cones.remove(cone.id);
+            History.undo();
+            break;
+          }
+          cone.text = text;
           Cones._updateTrailerText(cone);
         }
         break;
