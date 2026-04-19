@@ -441,6 +441,8 @@ const Cones = {
       resizing = false;
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
+      // Eat the click that fires after mouseup so it doesn't reach the map
+      document.addEventListener('click', (e) => e.stopPropagation(), { capture: true, once: true });
       if (this._onUpdate) this._onUpdate();
     };
 
@@ -490,6 +492,8 @@ const Cones = {
       rotating = false;
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
+      // Eat the click that fires after mouseup so it doesn't reach the map
+      document.addEventListener('click', (e) => e.stopPropagation(), { capture: true, once: true });
       if (this._onUpdate) this._onUpdate();
     };
 
