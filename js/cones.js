@@ -378,12 +378,13 @@ const Cones = {
     this._updateAllPointerRotations();
     this._updateAllFinishConeRotations();
     this._updateAllStartBeamRotations();
+    this._updateAllLeanerRotations();
     return idMap; // Return the ID mapping
   },
 
   /** Get cone count (only actual cone types) */
   count() {
-    const coneTypes = ['regular', 'pointer', 'start-cone'];
+    const coneTypes = ['regular', 'leaner', 'pointer', 'start-cone'];
     return this.cones.filter(c => coneTypes.includes(c.type)).length;
   },
 
@@ -602,6 +603,20 @@ const Cones = {
     span.style.fontSize = `${fontSize}px`;
   },
 
+  /** Apply stored rotation to a leaner cone's marker element */
+  _applyLeanerRotation(cone) {
+    if (cone.type !== 'leaner') return;
+    const inner = cone.marker.getElement().querySelector('.marker-leaner');
+    if (inner) inner.style.transform = `rotate(${cone.rotation || 0}deg)`;
+  },
+
+  /** Update rotation for all leaner cone markers */
+  _updateAllLeanerRotations() {
+    for (const c of this.cones) {
+      if (c.type === 'leaner') this._applyLeanerRotation(c);
+    }
+  },
+
   /** Create the HTML element for a cone marker */
   _createElement(type) {
     const el = document.createElement('div');
@@ -611,6 +626,9 @@ const Cones = {
     switch (type) {
       case 'regular':
         el.innerHTML = '<div class="marker-regular"></div>';
+        break;
+      case 'leaner':
+        el.innerHTML = '<div class="marker-leaner"></div>';
         break;
       case 'pointer':
         el.innerHTML = '<div class="marker-pointer"></div>';

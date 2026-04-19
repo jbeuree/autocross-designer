@@ -123,6 +123,12 @@ startfinish-btn {
   clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
 }
 
+.cone-leaner {
+  background: #ff8c00;
+  border-radius: 0;
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+}
+
 .cone-start {
   background: #22c55e;
 }
@@ -325,6 +331,16 @@ startfinish-btn {
   border-bottom: 9px solid #176b3a;
   filter: drop-shadow(0 0 1px rgba(0,0,0,0.5));
   transform-origin: center 66%;
+}
+
+.marker-leaner {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 14px solid #ff8c00;
+  filter: drop-shadow(0 0 1px rgba(0,0,0,0.3));
+  transform-origin: center center;
 }
 
 .marker-start {

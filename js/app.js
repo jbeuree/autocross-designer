@@ -28,6 +28,7 @@ const App = {
   _currentStartBeamPair: [], // IDs of the current start-beam pair [id1, id2]
   _startBeamLineElement: null, // SVG line connecting the start-beam pair
   _startBeamStart: null,  // first click for start-beam tool
+  _leanerStart: null,     // first click for leaner tool
   _currentFinishConePair: [], // IDs of the current finish-cone pair [id1, id2]
   _finishConeLineElement: null, // SVG line connecting the finish-cone pair
   _finishConeStart: null,  // first click for finish-cone tool
@@ -273,6 +274,10 @@ const App = {
         this._handleGateClick(lngLat);
         break;
 
+      case 'leaner':
+        this._handleLeanerClick(lngLat);
+        break;
+
       case 'slalom':
         this._handleSlalomClick(lngLat);
         break;
@@ -403,6 +408,12 @@ const App = {
       if (dist !== null) {
         this._showPreviewLabel(e.point, `${dist.toFixed(1)} ft`);
       }
+      return;
+    }
+
+    // Leaner preview line
+    if (this.activeTool === 'leaner' && this._leanerStart) {
+      this._showPreviewLine(this._leanerStart, lngLat);
       return;
     }
 
@@ -742,6 +753,38 @@ const App = {
         Cones.place('regular', center, [center.lng + offsetLng, center.lat + offsetLat]);
         Cones.place('regular', center, [center.lng - offsetLng, center.lat - offsetLat]);
       }
+    }
+  },
+
+  // ===== Leaner Tool (Two-Click) =====
+
+  /** Handle leaner click — first click places the cone, second click sets the pointing direction */
+  _handleLeanerClick(lngLat) {
+    if (!this._leanerStart) {
+      this._leanerStart = lngLat;
+      this._showToast('Click to set the direction the cone is pointing', 'info');
+    } else {
+      const center = this._leanerStart;
+      this._leanerStart = null;
+      this._hidePreviewLine();
+
+      History.push();
+
+      const cone = Cones.place('leaner', center, [center.lng, center.lat]);
+
+      // Compute pointing angle (same convention as pointer: 0° = north/up)
+      if (this.mode === 'image') {
+        const dx = lngLat.lng - center.lng;
+        const dy = lngLat.lat - center.lat;
+        cone.rotation = Math.atan2(dx, -dy) * (180 / Math.PI);
+      } else {
+        const cosLat = Math.cos(center.lat * Math.PI / 180);
+        const dx = (lngLat.lng - center.lng) * cosLat;
+        const dy = lngLat.lat - center.lat;
+        cone.rotation = Math.atan2(dx, dy) * (180 / Math.PI);
+      }
+
+      Cones._applyLeanerRotation(cone);
     }
   },
 
@@ -1244,6 +1287,12 @@ const App = {
       this._hidePreviewLine();
     }
 
+    // Cancel leaner if switching away
+    if (this.activeTool === 'leaner' && tool !== 'leaner') {
+      this._leanerStart = null;
+      this._hidePreviewLine();
+    }
+
     // Cancel start-cone preview if switching away (but keep existing cones and line)
     if (this.activeTool === 'start-cone' && tool !== 'start-cone') {
       this._startConeStart = null;
@@ -1453,6 +1502,19 @@ const App = {
         ctx.fill();
         ctx.strokeStyle = blackCones ? '#000' : '#cc7000';
         ctx.lineWidth = 2 * scale;
+        ctx.stroke();
+      } else if (cone.type === 'leaner') {
+        scale = 0.4;
+        ctx.rotate((cone.rotation || 0) * Math.PI / 180);
+        ctx.beginPath();
+        ctx.moveTo(0, -8 * scale);        // extended tip in pointing direction
+        ctx.lineTo(-5 * scale, 5 * scale); // base left
+        ctx.lineTo(5 * scale, 5 * scale);  // base right
+        ctx.closePath();
+        ctx.fillStyle = blackCones ? '#000' : '#ff8c00';
+        ctx.fill();
+        ctx.strokeStyle = blackCones ? '#000' : '#cc7000';
+        ctx.lineWidth = 1 * scale;
         ctx.stroke();
       } else if (cone.type === 'start-beam') {
         scale = 0.3;
