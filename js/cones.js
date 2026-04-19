@@ -175,7 +175,7 @@ const Cones = {
     }
 
     const el = this._createElement(type);
-    const clearBackground = type === 'trailer' && !exactLngLat ? confirm('Should this trailer have a clear background?') : false;
+    const clearBackground = type === 'cleartext';
 
     const marker = window.createMarker({ element: el, draggable: true })
       .setLngLat([placeLng, placeLat])
@@ -185,8 +185,8 @@ const Cones = {
     this.cones.push(cone);
 
     // Add resize and rotate handles for resizable elements
-    if (type === 'trailer' || type === 'staging-grid') {
-      const defaults = type === 'trailer' ? { w: 40, h: 20 } : { w: 80, h: 50 };
+    if (type === 'trailer' || type === 'cleartext' || type === 'staging-grid') {
+      const defaults = (type === 'trailer' || type === 'cleartext') ? { w: 40, h: 20 } : { w: 80, h: 50 };
       cone.width = defaults.w;
       cone.height = defaults.h;
       // Store base zoom so element scales proportionally with the map
@@ -196,7 +196,7 @@ const Cones = {
       this._addResizeHandle(cone, el);
       this._addRotateHandle(cone, el);
       this._updateElementTransform(cone);
-      if (type === 'trailer') {
+      if (type === 'trailer' || type === 'cleartext') {
         this._updateTrailerStyle(cone);
       }
     }
@@ -362,7 +362,7 @@ const Cones = {
         cone.text = d.text;
         this._updateTrailerText(cone);
       }
-      if (cone.type === 'trailer') {
+      if (cone.type === 'trailer' || cone.type === 'cleartext') {
         this._updateTrailerStyle(cone);
       }
     });
@@ -432,7 +432,7 @@ const Cones = {
         inner.style.width = cone.width + 'px';
         inner.style.height = cone.height + 'px';
       }
-      if (cone.type === 'trailer') {
+      if (cone.type === 'trailer' || cone.type === 'cleartext') {
         this._updateTrailerText(cone);
       }
     };
@@ -498,7 +498,7 @@ const Cones = {
 
   /** Get the current zoom-based scale factor for a resizable element */
   _getElementScale(cone) {
-    if (cone.type === 'trailer') {
+    if (cone.type === 'trailer' || cone.type === 'cleartext') {
       // Trailers don't scale with map zoom, but do scale in image mode
       return 1;
     }
@@ -522,7 +522,7 @@ const Cones = {
   /** Update scale for all trailer/staging-grid elements */
   _updateAllElementScales() {
     for (const c of this.cones) {
-      if (c.type === 'trailer' || c.type === 'staging-grid') {
+      if (c.type === 'trailer' || c.type === 'cleartext' || c.type === 'staging-grid') {
         this._updateElementTransform(c);
       }
     }
@@ -539,7 +539,7 @@ const Cones = {
       inner.style.height = cone.height + 'px';
     }
     this._updateElementTransform(cone);
-    if (cone.type === 'trailer') {
+    if (cone.type === 'trailer' || cone.type === 'cleartext') {
       this._updateTrailerText(cone);
       this._updateTrailerStyle(cone);
     }
@@ -547,7 +547,7 @@ const Cones = {
 
   /** Apply clear-background styling to a trailer */
   _updateTrailerStyle(cone) {
-    if (cone.type !== 'trailer') return;
+    if (cone.type !== 'trailer' && cone.type !== 'cleartext') return;
     const inner = cone.marker.getElement().querySelector('.marker-trailer');
     if (!inner) return;
     if (cone.clearBackground) {
@@ -559,7 +559,7 @@ const Cones = {
 
   /** Update the text displayed on a trailer */
   _updateTrailerText(cone) {
-    if (cone.type !== 'trailer') return;
+    if (cone.type !== 'trailer' && cone.type !== 'cleartext') return;
     const span = cone.marker.getElement().querySelector('.trailer-text');
     if (span) {
       span.textContent = cone.text || '';
@@ -621,6 +621,7 @@ const Cones = {
         el.innerHTML = '<div class="marker-finish"></div>';
         break;
       case 'trailer':
+      case 'cleartext':
         el.innerHTML = '<div class="marker-trailer"><span class="trailer-text"></span></div>';
         break;
       case 'staging-grid':

@@ -237,10 +237,11 @@ const App = {
       case 'regular':
       case 'pointer':
       case 'trailer':
+      case 'cleartext':
       case 'staging-grid':
         History.push();
         const cone = Cones.place(this.activeTool, lngLat);
-        if (this.activeTool === 'trailer') {
+        if (this.activeTool === 'trailer' || this.activeTool === 'cleartext') {
           const text = prompt('Enter text to display:', '');
           cone.text = text || '';
           Cones._updateTrailerText(cone);
@@ -1481,7 +1482,7 @@ const App = {
         ctx.lineWidth = 1 * scale;
         ctx.stroke();
         ctx.restore();
-      } else if (cone.type === 'trailer') {
+      } else if (cone.type === 'trailer' || cone.type === 'cleartext') {
         if (cone.rotation) ctx.rotate(cone.rotation * Math.PI / 180);
         const elemScale = Cones._getElementScale(cone);
         const tw = (cone.width || 40) * elemScale * dpr / 2;
