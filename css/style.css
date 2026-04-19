@@ -318,7 +318,7 @@ startfinish-btn {
   height: 0;
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
-  border-bottom: 9px solid #a3e635;
+  border-bottom: 9px solid #176b3a;
   filter: drop-shadow(0 0 1px rgba(0,0,0,0.5));
   transform-origin: center 66%;
 }

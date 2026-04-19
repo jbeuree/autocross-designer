@@ -1419,7 +1419,7 @@ const App = {
         ctx.lineTo(-6 * scale, 6 * scale);
         ctx.lineTo(6 * scale, 6 * scale);
         ctx.closePath();
-        ctx.fillStyle = blackCones ? '#000' : '#a3e635';
+        ctx.fillStyle = blackCones ? '#000' : '#176b3a';
         ctx.fill();
       } else if (cone.type === 'regular') {
         scale = 0.2;
