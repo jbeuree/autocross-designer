@@ -295,6 +295,10 @@ startfinish-btn {
 }
 
 /* Map Markers - Cones */
+.mapboxgl-marker {
+  z-index: 2 !important;
+}
+
 .cone-marker {
   cursor: crosshair;
   transform: scale(var(--marker-scale, 1));

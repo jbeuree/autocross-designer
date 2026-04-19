@@ -514,27 +514,73 @@ const App = {
   },
 
   /** Draw a thin black line connecting two cones by their lngLat positions */
+  /** Create and insert a connecting line SVG, handling map vs image mode */
+  _createLineSVG(lngLat1, lngLat2, color) {
+    let x1, y1, x2, y2, container, cssText;
+    if (this.mode === 'image') {
+      // Use raw image pixel coords inside .image-wrapper (before marker container)
+      x1 = lngLat1[0]; y1 = lngLat1[1];
+      x2 = lngLat2[0]; y2 = lngLat2[1];
+      container = document.querySelector('.image-wrapper');
+      cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;';
+    } else {
+      const p1 = this.map.project(lngLat1);
+      const p2 = this.map.project(lngLat2);
+      x1 = p1.x; y1 = p1.y;
+      x2 = p2.x; y2 = p2.y;
+      container = document.getElementById('map');
+      cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;pointer-events:none;';
+    }
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.style.cssText = cssText;
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', x1);
+    line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2);
+    line.setAttribute('y2', y2);
+    line.setAttribute('stroke', color);
+    line.setAttribute('stroke-width', '1');
+    svg.appendChild(line);
+    if (this.mode === 'image') {
+      // Insert before .image-marker-container so markers stay on top
+      const markerContainer = container && container.querySelector('.image-marker-container');
+      if (markerContainer) {
+        container.insertBefore(svg, markerContainer);
+      } else if (container) {
+        container.appendChild(svg);
+      }
+    } else {
+      container.prepend(svg);
+    }
+    return svg;
+  },
+
   _drawStartConeConnectingLine(cone1LngLat, cone2LngLat) {
     // Remove existing line
     if (this._startConeLineElement) {
       this._startConeLineElement.remove();
     }
 
-    const p1 = this.map.project(cone1LngLat);
-    const p2 = this.map.project(cone2LngLat);
+    // const toXY = (lngLat) => this.mode === 'image'
+    //   ? { x: lngLat[0] ?? lngLat.lng, y: lngLat[1] ?? lngLat.lat }
+    //   : this.map.project(lngLat);
 
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:5;pointer-events:none;';
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', p1.x);
-    line.setAttribute('y1', p1.y);
-    line.setAttribute('x2', p2.x);
-    line.setAttribute('y2', p2.y);
-    line.setAttribute('stroke', startLineColor);
-    line.setAttribute('stroke-width', '1.5');
-    svg.appendChild(line);
-    document.body.appendChild(svg);
-    this._startConeLineElement = svg;
+    // const p1 = toXY(cone1LngLat);
+    // const p2 = toXY(cone2LngLat);
+    // const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+    // const inset = 4;
+
+    // this._startConeLineElement = this._createLineSVG(
+    //   [p1.x + Math.cos(angle) * inset, p1.y + Math.sin(angle) * inset],
+    //   [p2.x - Math.cos(angle) * inset, p2.y - Math.sin(angle) * inset],
+    //   startLineColor
+    // );
+    this._startConeLineElement = this._createLineSVG(
+      Array.isArray(cone1LngLat) ? cone1LngLat : [cone1LngLat.lng, cone1LngLat.lat],
+      Array.isArray(cone2LngLat) ? cone2LngLat : [cone2LngLat.lng, cone2LngLat.lat],
+      startLineColor
+    );
+
   },
 
   /** Remove the start-cone connecting line */
@@ -552,21 +598,11 @@ const App = {
       this._startBeamLineElement.remove();
     }
 
-    const p1 = this.map.project(pylon1LngLat);
-    const p2 = this.map.project(pylon2LngLat);
-
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:5;pointer-events:none;';
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', p1.x);
-    line.setAttribute('y1', p1.y);
-    line.setAttribute('x2', p2.x);
-    line.setAttribute('y2', p2.y);
-    line.setAttribute('stroke', startBeamColor);
-    line.setAttribute('stroke-width', '1.5');
-    svg.appendChild(line);
-    document.body.appendChild(svg);
-    this._startBeamLineElement = svg;
+    this._startBeamLineElement = this._createLineSVG(
+      Array.isArray(pylon1LngLat) ? pylon1LngLat : [pylon1LngLat.lng, pylon1LngLat.lat],
+      Array.isArray(pylon2LngLat) ? pylon2LngLat : [pylon2LngLat.lng, pylon2LngLat.lat],
+      startBeamColor
+    );
   },
 
   /** Remove the start-beam connecting line */
@@ -595,21 +631,11 @@ const App = {
       this._finishConeLineElement.remove();
     }
 
-    const p1 = this.map.project(cone1LngLat);
-    const p2 = this.map.project(cone2LngLat);
-
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:5;pointer-events:none;';
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', p1.x);
-    line.setAttribute('y1', p1.y);
-    line.setAttribute('x2', p2.x);
-    line.setAttribute('y2', p2.y);
-    line.setAttribute('stroke', '#000000');
-    line.setAttribute('stroke-width', '1.5');
-    svg.appendChild(line);
-    document.body.appendChild(svg);
-    this._finishConeLineElement = svg;
+    this._finishConeLineElement = this._createLineSVG(
+      Array.isArray(cone1LngLat) ? cone1LngLat : [cone1LngLat.lng, cone1LngLat.lat],
+      Array.isArray(cone2LngLat) ? cone2LngLat : [cone2LngLat.lng, cone2LngLat.lat],
+      '#000000'
+    );
   },
 
   /** Remove the finish-cone connecting line */
