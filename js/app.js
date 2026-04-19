@@ -2,6 +2,9 @@
 
 const finishConeSize = 16;
 const startBeamConeSize = 16;
+const startLineColor = '#000000';
+const startBeamColor = '#0d6326';
+const finishLineColor = '#000000';
 const App = {
   activeTool: 'regular',  // current tool
   selectedCone: null,
@@ -521,7 +524,7 @@ const App = {
     line.setAttribute('y1', p1.y);
     line.setAttribute('x2', p2.x);
     line.setAttribute('y2', p2.y);
-    line.setAttribute('stroke', '#000000');
+    line.setAttribute('stroke', startLineColor);
     line.setAttribute('stroke-width', '1.5');
     svg.appendChild(line);
     document.body.appendChild(svg);
@@ -553,7 +556,7 @@ const App = {
     line.setAttribute('y1', p1.y);
     line.setAttribute('x2', p2.x);
     line.setAttribute('y2', p2.y);
-    line.setAttribute('stroke', '#3b82f6');
+    line.setAttribute('stroke', startBeamColor);
     line.setAttribute('stroke-width', '1.5');
     svg.appendChild(line);
     document.body.appendChild(svg);
@@ -596,7 +599,7 @@ const App = {
     line.setAttribute('y1', p1.y);
     line.setAttribute('x2', p2.x);
     line.setAttribute('y2', p2.y);
-    line.setAttribute('stroke', '#3b82f6');
+    line.setAttribute('stroke', '#000000');
     line.setAttribute('stroke-width', '1.5');
     svg.appendChild(line);
     document.body.appendChild(svg);
@@ -1386,7 +1389,7 @@ const App = {
     const dpr = this.mode === 'image' ? 1 : window.devicePixelRatio;
 
     // Draw connecting lines for cone pairs
-    this._drawConnectingLinesForExport(ctx, dpr);
+    this._drawConnectingLinesForExport(ctx, dpr, blackCones);
 
     for (const cone of Cones.cones) {
       // Skip if cones layer is hidden
@@ -1574,9 +1577,9 @@ const App = {
         ctx.save();
         ctx.beginPath();
         ctx.arc(wx, wy, 12 * scale, 0, Math.PI * 2);
-        ctx.fillStyle = '#3b82f6';
+        ctx.fillStyle = blackCones ? '#000' :'#3b82f6';
         ctx.fill();
-        ctx.strokeStyle = '#1d4ed8';
+        ctx.strokeStyle = blackCones ? '#000' :'#1d4ed8';
         ctx.lineWidth = 2 * scale;
         ctx.stroke();
         ctx.fillStyle = '#fff';
@@ -1708,8 +1711,8 @@ const App = {
   },
 
   /** Draw connecting lines for start cone, start beam, and finish cone pairs on export */
-  _drawConnectingLinesForExport(ctx, dpr) {
-    const drawBlueLine = (cone1LngLat, cone2LngLat) => {
+  _drawConnectingLinesForExport(ctx, dpr, blackCones) {
+    const drawLine = (cone1LngLat, cone2LngLat, color) => {
       const p1pos = this.mode === 'image'
         ? { x: cone1LngLat[0], y: cone1LngLat[1] }
         : this.map.project(cone1LngLat);
@@ -1721,26 +1724,8 @@ const App = {
       ctx.beginPath();
       ctx.moveTo(p1pos.x * dpr, p1pos.y * dpr);
       ctx.lineTo(p2pos.x * dpr, p2pos.y * dpr);
-      ctx.strokeStyle = '#3b82f6';
-      ctx.lineWidth = 1.5 * dpr;
-      ctx.stroke();
-      ctx.restore();
-    };
-
-    const drawBlackLine = (cone1LngLat, cone2LngLat) => {
-      const p1pos = this.mode === 'image'
-        ? { x: cone1LngLat[0], y: cone1LngLat[1] }
-        : this.map.project(cone1LngLat);
-      const p2pos = this.mode === 'image'
-        ? { x: cone2LngLat[0], y: cone2LngLat[1] }
-        : this.map.project(cone2LngLat);
-      
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(p1pos.x * dpr, p1pos.y * dpr);
-      ctx.lineTo(p2pos.x * dpr, p2pos.y * dpr);
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 1.5 * dpr;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1 * dpr;
       ctx.stroke();
       ctx.restore();
     };
@@ -1750,7 +1735,7 @@ const App = {
       const cone1 = Cones.cones.find(c => c.id === this._currentStartConePair[0]);
       const cone2 = Cones.cones.find(c => c.id === this._currentStartConePair[1]);
       if (cone1 && cone2) {
-        drawBlackLine(cone1.lngLat, cone2.lngLat);
+        drawLine(cone1.lngLat, cone2.lngLat, startLineColor);
       }
     }
 
@@ -1759,7 +1744,7 @@ const App = {
       const pylon1 = Cones.cones.find(c => c.id === this._currentStartBeamPair[0]);
       const pylon2 = Cones.cones.find(c => c.id === this._currentStartBeamPair[1]);
       if (pylon1 && pylon2) {
-        drawBlueLine(pylon1.lngLat, pylon2.lngLat);
+        drawLine(pylon1.lngLat, pylon2.lngLat, blackCones ? '#000000' : startBeamColor);
       }
     }
 
@@ -1768,7 +1753,7 @@ const App = {
       const cone1 = Cones.cones.find(c => c.id === this._currentFinishConePair[0]);
       const cone2 = Cones.cones.find(c => c.id === this._currentFinishConePair[1]);
       if (cone1 && cone2) {
-         drawBlueLine(cone1.lngLat, cone2.lngLat);
+         drawLine(cone1.lngLat, cone2.lngLat, finishLineColor);
       }
     }
   },
