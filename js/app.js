@@ -1728,6 +1728,40 @@ const App = {
         0, 0, resultCanvas.width, resultCanvas.height);
     }
 
+    // Draw stats overlay (cone count + course length) in upper-left
+    {
+      const coneCount = Cones.count();
+      const lineLen = Distance.totalLength(DrivingLine.waypoints);
+      const lineLenText = lineLen > 0 ? `${lineLen.toFixed(0)} ft` : '--';
+      const lines = [
+        `Length: ${lineLenText}`,
+        `Cones: ${coneCount}`,
+      ];
+
+      const padding = 8 * dpr;
+      const lineHeight = 16 * dpr;
+      const fontSize = 13 * dpr;
+      const boxW = 110 * dpr;
+      const boxH = padding * 2 + lineHeight * lines.length;
+      const x = 10 * dpr;
+      const y = 10 * dpr;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+      ctx.beginPath();
+      ctx.roundRect(x, y, boxW, boxH, 4 * dpr);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold ${fontSize}px sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      lines.forEach((line, i) => {
+        ctx.fillText(line, x + padding, y + padding + lineHeight * i + lineHeight / 2);
+      });
+      ctx.restore();
+    }
+
     // Draw scale bar
     this._drawScaleBar(ctx, resultCanvas.width, resultCanvas.height, dpr);
 

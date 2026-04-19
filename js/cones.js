@@ -383,7 +383,7 @@ const Cones = {
 
   /** Get cone count (only actual cone types) */
   count() {
-    const coneTypes = ['regular', 'pointer', 'start-cone', 'start-beam', 'finish-cone'];
+    const coneTypes = ['regular', 'pointer', 'start-cone'];
     return this.cones.filter(c => coneTypes.includes(c.type)).length;
   },
 
