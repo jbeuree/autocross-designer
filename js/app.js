@@ -1441,51 +1441,38 @@ const App = {
       } else if (cone.type === 'finish-cone') {
         scale = 0.3;
         const size = finishConeSize * scale;
-        // if (blackCones) {
-        //   ctx.save();
-        //   if (cone.rotation) ctx.rotate(cone.rotation * Math.PI / 180);
-        //   ctx.beginPath();
-        //   ctx.rect(-size / 2, -size / 2, size, size);
-        //   ctx.fillStyle = '#000';
-        //   ctx.fill();
-        //   ctx.strokeStyle = '#000';
-        //   ctx.lineWidth = 1 * scale;
-        //   ctx.stroke();
-        //   ctx.restore();
-        // } else {
-          const patternCanvas = document.createElement('canvas');
-          patternCanvas.width = 8;
-          patternCanvas.height = 8;
-          const pctx = patternCanvas.getContext('2d');
-          if (pctx) {
-            pctx.fillStyle = '#000';
-            pctx.fillRect(0, 0, 8, 8);
-            pctx.fillStyle = '#fff';
-            pctx.beginPath();
-            pctx.moveTo(0, 0);
-            pctx.lineTo(8, 0);
-            pctx.lineTo(8, 4);
-            pctx.closePath();
-            pctx.fill();
-            pctx.beginPath();
-            pctx.moveTo(0, 4);
-            pctx.lineTo(4, 8);
-            pctx.lineTo(0, 8);
-            pctx.closePath();
-            pctx.fill();
-          }
-          const pattern = pctx ? ctx.createPattern(patternCanvas, 'repeat') : '#888';
-          ctx.save();
-          if (cone.rotation) ctx.rotate(cone.rotation * Math.PI / 180);
-          ctx.beginPath();
-          ctx.rect(-size / 2, -size / 2, size, size);
-          ctx.fillStyle = pattern;
-          ctx.fill();
-          ctx.strokeStyle = '#666';
-          ctx.lineWidth = 1 * scale;
-          ctx.stroke();
-          ctx.restore();
-        // }
+        const patternCanvas = document.createElement('canvas');
+        patternCanvas.width = 8;
+        patternCanvas.height = 8;
+        const pctx = patternCanvas.getContext('2d');
+        if (pctx) {
+          pctx.fillStyle = '#000';
+          pctx.fillRect(0, 0, 8, 8);
+          pctx.fillStyle = '#fff';
+          pctx.beginPath();
+          pctx.moveTo(0, 0);
+          pctx.lineTo(8, 0);
+          pctx.lineTo(8, 4);
+          pctx.closePath();
+          pctx.fill();
+          pctx.beginPath();
+          pctx.moveTo(0, 4);
+          pctx.lineTo(4, 8);
+          pctx.lineTo(0, 8);
+          pctx.closePath();
+          pctx.fill();
+        }
+        const pattern = pctx ? ctx.createPattern(patternCanvas, 'repeat') : '#888';
+        ctx.save();
+        if (cone.rotation) ctx.rotate(cone.rotation * Math.PI / 180);
+        ctx.beginPath();
+        ctx.rect(-size / 2, -size / 2, size, size);
+        ctx.fillStyle = pattern;
+        ctx.fill();
+        ctx.strokeStyle = '#666';
+        ctx.lineWidth = 1 * scale;
+        ctx.stroke();
+        ctx.restore();
       } else if (cone.type === 'trailer') {
         if (cone.rotation) ctx.rotate(cone.rotation * Math.PI / 180);
         const elemScale = Cones._getElementScale(cone);
