@@ -1347,6 +1347,7 @@ const App = {
     const printBtn = document.getElementById('btn-print');
     const dialog = document.getElementById('print-dialog');
     const includeGrid = document.getElementById('print-include-grid');
+    const blackCones = document.getElementById('print-black-cones');
     const confirmBtn = document.getElementById('print-confirm');
     const cancelBtn = document.getElementById('print-cancel');
 
@@ -1362,12 +1363,12 @@ const App = {
 
     confirmBtn.addEventListener('click', () => {
       dialog.classList.add('hidden');
-      this._captureImage(includeGrid.checked);
+      this._captureImage(includeGrid.checked, blackCones.checked);
     });
   },
 
   /** Capture the map + optional grid as a downloadable image */
-  _captureImage(withGrid) {
+  _captureImage(withGrid, blackCones) {
     const mapCanvas = this.map.getCanvas();
     const resultCanvas = document.createElement('canvas');
     resultCanvas.width = mapCanvas.width;
@@ -1404,15 +1405,15 @@ const App = {
         ctx.lineTo(-6 * scale, 6 * scale);
         ctx.lineTo(6 * scale, 6 * scale);
         ctx.closePath();
-        ctx.fillStyle = '#a3e635';
+        ctx.fillStyle = blackCones ? '#000' : '#a3e635';
         ctx.fill();
       } else if (cone.type === 'regular') {
         scale = 0.2;
         ctx.beginPath();
         ctx.arc(0, 0, 7 * scale, 0, Math.PI * 2);
-        ctx.fillStyle = '#ff8c00';
+        ctx.fillStyle = blackCones ? '#000' : '#ff8c00';
         ctx.fill();
-        ctx.strokeStyle = '#cc7000';
+        ctx.strokeStyle = blackCones ? '#000' : '#cc7000';
         ctx.lineWidth = 2 * scale;
         ctx.stroke();
       } else if (cone.type === 'start-beam') {
@@ -1422,9 +1423,9 @@ const App = {
         if (cone.rotation) ctx.rotate(cone.rotation * Math.PI / 180);
         ctx.beginPath();
         ctx.rect(-size / 2, -size / 2, size, size);
-        ctx.fillStyle = '#22c55e';
+        ctx.fillStyle = blackCones ? '#000' : '#22c55e';
         ctx.fill();
-        ctx.strokeStyle = '#16a34a';
+        ctx.strokeStyle = blackCones ? '#000' : '#16a34a';
         ctx.lineWidth = 2 * scale;
         ctx.stroke();
         ctx.restore();
@@ -1432,46 +1433,59 @@ const App = {
         scale = 0.3;
         ctx.beginPath();
         ctx.arc(0, 0, 7 * scale, 0, Math.PI * 2);
-        ctx.fillStyle = '#22c55e';
+        ctx.fillStyle = blackCones ? '#000' : '#22c55e';
         ctx.fill();
-        ctx.strokeStyle = '#16a34a';
+        ctx.strokeStyle = blackCones ? '#000' : '#16a34a';
         ctx.lineWidth = 2 * scale;
         ctx.stroke();
       } else if (cone.type === 'finish-cone') {
         scale = 0.3;
         const size = finishConeSize * scale;
-        const patternCanvas = document.createElement('canvas');
-        patternCanvas.width = 8;
-        patternCanvas.height = 8;
-        const pctx = patternCanvas.getContext('2d');
-        if (pctx) {
-          pctx.fillStyle = '#000';
-          pctx.fillRect(0, 0, 8, 8);
-          pctx.fillStyle = '#fff';
-          pctx.beginPath();
-          pctx.moveTo(0, 0);
-          pctx.lineTo(8, 0);
-          pctx.lineTo(8, 4);
-          pctx.closePath();
-          pctx.fill();
-          pctx.beginPath();
-          pctx.moveTo(0, 4);
-          pctx.lineTo(4, 8);
-          pctx.lineTo(0, 8);
-          pctx.closePath();
-          pctx.fill();
-        }
-        const pattern = pctx ? ctx.createPattern(patternCanvas, 'repeat') : '#888';
-        ctx.save();
-        if (cone.rotation) ctx.rotate(cone.rotation * Math.PI / 180);
-        ctx.beginPath();
-        ctx.rect(-size / 2, -size / 2, size, size);
-        ctx.fillStyle = pattern;
-        ctx.fill();
-        ctx.strokeStyle = '#666';
-        ctx.lineWidth = 1 * scale;
-        ctx.stroke();
-        ctx.restore();
+        // if (blackCones) {
+        //   ctx.save();
+        //   if (cone.rotation) ctx.rotate(cone.rotation * Math.PI / 180);
+        //   ctx.beginPath();
+        //   ctx.rect(-size / 2, -size / 2, size, size);
+        //   ctx.fillStyle = '#000';
+        //   ctx.fill();
+        //   ctx.strokeStyle = '#000';
+        //   ctx.lineWidth = 1 * scale;
+        //   ctx.stroke();
+        //   ctx.restore();
+        // } else {
+          const patternCanvas = document.createElement('canvas');
+          patternCanvas.width = 8;
+          patternCanvas.height = 8;
+          const pctx = patternCanvas.getContext('2d');
+          if (pctx) {
+            pctx.fillStyle = '#000';
+            pctx.fillRect(0, 0, 8, 8);
+            pctx.fillStyle = '#fff';
+            pctx.beginPath();
+            pctx.moveTo(0, 0);
+            pctx.lineTo(8, 0);
+            pctx.lineTo(8, 4);
+            pctx.closePath();
+            pctx.fill();
+            pctx.beginPath();
+            pctx.moveTo(0, 4);
+            pctx.lineTo(4, 8);
+            pctx.lineTo(0, 8);
+            pctx.closePath();
+            pctx.fill();
+          }
+          const pattern = pctx ? ctx.createPattern(patternCanvas, 'repeat') : '#888';
+          ctx.save();
+          if (cone.rotation) ctx.rotate(cone.rotation * Math.PI / 180);
+          ctx.beginPath();
+          ctx.rect(-size / 2, -size / 2, size, size);
+          ctx.fillStyle = pattern;
+          ctx.fill();
+          ctx.strokeStyle = '#666';
+          ctx.lineWidth = 1 * scale;
+          ctx.stroke();
+          ctx.restore();
+        // }
       } else if (cone.type === 'trailer') {
         if (cone.rotation) ctx.rotate(cone.rotation * Math.PI / 180);
         const elemScale = Cones._getElementScale(cone);
