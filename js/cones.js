@@ -323,6 +323,7 @@ const Cones = {
       if (c.height != null) d.height = c.height;
       if (c.rotation) d.rotation = c.rotation;
       if (c.baseZoom != null) d.baseZoom = c.baseZoom;
+      if (c.text) d.text = c.text;
       return d;
     });
   },
@@ -348,6 +349,10 @@ const Cones = {
       }
       if (cone.width || cone.rotation) {
         this._applySize(cone);
+      }
+      if (d.text) {
+        cone.text = d.text;
+        this._updateTrailerText(cone);
       }
     });
     // Second pass: restore locked targets (map old IDs to new IDs)
@@ -415,6 +420,9 @@ const Cones = {
       if (inner) {
         inner.style.width = cone.width + 'px';
         inner.style.height = cone.height + 'px';
+      }
+      if (cone.type === 'trailer') {
+        this._updateTrailerText(cone);
       }
     };
 
@@ -520,6 +528,50 @@ const Cones = {
       inner.style.height = cone.height + 'px';
     }
     this._updateElementTransform(cone);
+    if (cone.type === 'trailer') {
+      this._updateTrailerText(cone);
+    }
+  },
+
+  /** Update the text displayed on a trailer */
+  _updateTrailerText(cone) {
+    if (cone.type !== 'trailer') return;
+    const span = cone.marker.getElement().querySelector('.trailer-text');
+    if (span) {
+      span.textContent = cone.text || '';
+      this._resizeTrailerText(cone, span);
+    }
+  },
+
+  /** Resize trailer text to fit inside the trailer bounds */
+  _resizeTrailerText(cone, span) {
+    if (!span) return;
+    const el = cone.marker.getElement().querySelector('.marker-trailer');
+    if (!el) return;
+
+    const padding = 8; // total horizontal padding
+    const maxWidth = (cone.width || 40) - padding;
+    const maxHeight = (cone.height || 20) - padding / 2;
+    const text = cone.text || '';
+    if (!text) {
+      span.style.fontSize = '';
+      return;
+    }
+
+    let fontSize = 65; // start large and shrink until it fits
+    const ctx = document.createElement('canvas').getContext('2d');
+    if (!ctx) return;
+
+    while (fontSize > 6) {
+      ctx.font = `bold ${fontSize}px sans-serif`;
+      const metrics = ctx.measureText(text);
+      const textWidth = metrics.width;
+      const textHeight = fontSize * 1.1;
+      if (textWidth <= maxWidth && textHeight <= maxHeight) break;
+      fontSize -= 1;
+    }
+
+    span.style.fontSize = `${fontSize}px`;
   },
 
   /** Create the HTML element for a cone marker */
@@ -545,7 +597,7 @@ const Cones = {
         el.innerHTML = '<div class="marker-finish"></div>';
         break;
       case 'trailer':
-        el.innerHTML = '<div class="marker-trailer"></div>';
+        el.innerHTML = '<div class="marker-trailer"><span class="trailer-text"></span></div>';
         break;
       case 'staging-grid':
         el.innerHTML = '<div class="marker-staging-grid">GRID</div>';

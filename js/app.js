@@ -236,7 +236,12 @@ const App = {
       case 'trailer':
       case 'staging-grid':
         History.push();
-        Cones.place(this.activeTool, lngLat);
+        const cone = Cones.place(this.activeTool, lngLat);
+        if (this.activeTool === 'trailer') {
+          const text = prompt('Enter text to display on the trailer:', '');
+          cone.text = text || '';
+          Cones._updateTrailerText(cone);
+        }
         break;
 
       case 'start-beam':
@@ -1476,18 +1481,35 @@ const App = {
       } else if (cone.type === 'trailer') {
         if (cone.rotation) ctx.rotate(cone.rotation * Math.PI / 180);
         const elemScale = Cones._getElementScale(cone);
-        const tw = (cone.width || 40) * dpr / 2; //elemScale; // * dpr;
-        const th = (cone.height || 20) * dpr / 2; //elemScale; // * dpr;
-        console.log("DPR: " + dpr + ", elemScale: " + elemScale + ", tw: " + tw + ", th: " + th);
+        const tw = (cone.width || 40) * elemScale * dpr / 2;
+        const th = (cone.height || 20) * elemScale * dpr / 2;
         ctx.beginPath();
         ctx.rect(-tw / 2, -th / 2, tw, th);
-        ctx.fillStyle = 'rgba(218, 218, 234, 0.8)';
+        ctx.fillStyle = 'rgba(120, 120, 140, 0.8)';
         ctx.fill();
         ctx.strokeStyle = '#666';
-        ctx.lineWidth = 1; // * dpr;
+        ctx.lineWidth = 2 * dpr;
         ctx.stroke();
-        ctx.font = `bold ${11 * dpr}px sans-serif`;
-        ctx.textAlign = 'center';
+        if (cone.text) {
+          ctx.fillStyle = '#000';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+
+          let fontSize = 65;
+          const maxWidth = tw - 8 * dpr;
+          const maxHeight = th - 6 * dpr;
+          do {
+            ctx.font = `bold ${fontSize}px sans-serif`;
+            const metrics = ctx.measureText(cone.text);
+            const textWidth = metrics.width;
+            const textHeight = fontSize * 1.1;
+            if (textWidth <= maxWidth && textHeight <= maxHeight) break;
+            fontSize -= 1;
+          } while (fontSize > 6);
+
+          ctx.fillText(cone.text, 0, 0);
+        }
+      } else if (cone.type === 'staging-grid') {
         ctx.textBaseline = 'middle';
         ctx.fillStyle = '#000';
         ctx.fillText('T', 0, 0);

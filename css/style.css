@@ -974,6 +974,20 @@ startfinish-btn {
   background: rgba(120, 120, 140, 0.8);
   border: 2px solid #666;
   border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #000;
+  font-size: 11px;
+  font-weight: bold;
+  text-align: center;
+  overflow: hidden;
+}
+
+.trailer-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .marker-staging-grid {
