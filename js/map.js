@@ -16,7 +16,7 @@ const MapModule = {
     this.map = new mapboxgl.Map({
       container: 'map',
       style: 'mapbox://styles/mapbox/satellite-streets-v12',
-      center: [-121.1094, 37.4080], // San Jose, CA default
+      center: [45.299736, -75.923418], // Ottawa, ON default
       zoom: 17,
       minZoom: 10,
       maxZoom: 22,
