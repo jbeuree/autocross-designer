@@ -555,7 +555,7 @@ const ImageMap = {
           }
           ctx.strokeStyle = color;
           ctx.lineWidth = 1;
-          ctx.setLineDash([6, 6]);
+          ctx.setLineDash(typeof App !== 'undefined' && App._solidDrivingLine ? [] : [6, 6]);
           ctx.stroke();
           ctx.setLineDash([]);
         }

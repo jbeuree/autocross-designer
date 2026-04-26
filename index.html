@@ -192,17 +192,17 @@
         <span class="tool-icon">&#63;</span>
         Help
       </button>
-      <button class="tool-btn" id="btn-print" title="Print to Image">
+      <button class="tool-btn" id="btn-print" title="Export Image">
         <span class="tool-icon">&#128438;</span>
-        Print
+        Export Image
       </button>
-      <button class="tool-btn" id="btn-export" title="Export JSON">
+      <button class="tool-btn" id="btn-export" title="Save">
         <span class="tool-icon">&#128228;</span>
-        Export
+        Save
       </button>
-      <button class="tool-btn" id="btn-import" title="Import JSON">
+      <button class="tool-btn" id="btn-import" title="Load">
         <span class="tool-icon">&#128229;</span>
-        Import
+        Load
       </button>
       <input type="file" id="import-file" accept=".json" style="display:none">
     </div>
@@ -242,6 +242,13 @@
       <div id="notes-list"></div>
       <h3>Workers</h3>
       <div id="workers-list"></div>
+      <h3>Options</h3>
+      <div id="options-list">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;">
+          <input type="checkbox" id="opt-solid-driving-line">
+          <span>Solid Driving Line</span>
+        </label>
+      </div>
     </div>
   </div>
 
@@ -293,7 +300,7 @@
   <!-- Print Dialog -->
   <div id="print-dialog" class="hidden">
     <div class="print-dialog-content">
-      <h3>Print to Image</h3>
+      <h3>Export Image</h3>
       <label class="print-option">
         <input type="checkbox" id="print-include-grid"> Include grid lines
       </label>
@@ -301,7 +308,7 @@
         <input type="checkbox" id="print-black-cones" checked="true"> Black and white
       </label>
       <div class="print-dialog-buttons">
-        <button id="print-confirm" class="print-btn-confirm">Download Image</button>
+        <button id="print-confirm" class="print-btn-confirm">Download</button>
         <button id="print-cancel" class="print-btn-cancel">Cancel</button>
       </div>
     </div>
@@ -337,8 +344,8 @@
         <p><b>Grid</b> — toggle a 10 ft grid overlay. Adjust rotation with the slider or number input. Toggle light/dark grid lines.</p>
 
         <h4>Course</h4>
-        <p><b>Print</b> — download the current view as a PNG image.</p>
-        <p><b>Export / Import</b> — save or load courses as JSON files.</p>
+        <p><b>Export Image</b> — download the current view as a PNG image.</p>
+        <p><b>Save / Load</b> — save or load courses as JSON files.</p>
 
         <h4>Layers &amp; Sidebar</h4>
         <p>The right sidebar shows course info, layer visibility toggles (cones, measurements, notes, obstacles, workers, driving line), notes, worker stations, saved venues, and saved courses.</p>

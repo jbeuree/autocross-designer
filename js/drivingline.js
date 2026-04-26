@@ -6,6 +6,8 @@ const DrivingLine = {
   _sourceId: 'driving-line-source',
   _layerId: 'driving-line-layer',
   _onUpdate: null,
+  _defaultDashArray: [2, 2],
+  _isSolid: false,
 
   init(map, { onUpdate }) {
     this._map = map;
@@ -37,9 +39,11 @@ const DrivingLine = {
       paint: {
         'line-color': '#60a5fa',
         'line-width': 3,
-        'line-dasharray': [2, 2],
+        'line-dasharray': this._defaultDashArray.slice(),
       },
     });
+
+    this.setSolid(this._isSolid);
   },
 
   /** Add a waypoint at the given lngLat */
@@ -169,5 +173,18 @@ const DrivingLine = {
         },
       }],
     };
+  },
+
+  setSolid(solid) {
+    this._isSolid = !!solid;
+    if (!this._map || !this._map.getLayer || !this._map.getLayer(this._layerId) || !this._map.setPaintProperty) {
+      return;
+    }
+
+    this._map.setPaintProperty(
+      this._layerId,
+      'line-dasharray',
+      this._isSolid ? null : this._defaultDashArray.slice()
+    );
   },
 };

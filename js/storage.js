@@ -37,7 +37,7 @@ const Storage = {
   },
 
   /** Serialize current state to a plain object for saving */
-  serialize(cones, drivingLine, measurements, notes, mapCenter, mapZoom, imageMode, imageFileName) {
+  serialize(cones, drivingLine, measurements, notes, mapCenter, mapZoom, imageMode, imageFileName, solidDrivingLine) {
     const data = {
       cones: cones.map(c => {
         const d = { id: c.id, type: c.type, lngLat: c.lngLat, lockedTargetId: c.lockedTargetId || null };
@@ -52,6 +52,7 @@ const Storage = {
       notes: notes,
       mapCenter,
       mapZoom,
+      solidDrivingLine: !!solidDrivingLine,
     };
     if (imageMode) {
       data.imageMode = true;

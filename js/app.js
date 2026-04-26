@@ -11,6 +11,7 @@ const App = {
   map: null,
   mode: 'map',           // 'map' or 'image'
   imageFileName: null,    // name of loaded image file (image mode only)
+  _solidDrivingLine: false,
   _scalePoints: [],       // temp array for scale calibration clicks [{x,y}]
   _scaleMarkers: [],      // temp DOM elements for scale point display
   _scaleLine: null,       // temp SVG line overlay
@@ -175,6 +176,9 @@ const App = {
     // Wire up sidebar
     this._setupSidebar();
 
+    // Wire up course options
+    this._setupOptions();
+
     // Wire up grid controls
     this._setupGrid();
 
@@ -231,6 +235,37 @@ const App = {
     if (this._sharedCourse) {
       this._loadCourseData(this._sharedCourse);
       this._sharedCourse = null;
+    }
+  },
+
+  _setupOptions() {
+    const solidCheckbox = document.getElementById('opt-solid-driving-line');
+    if (!solidCheckbox) return;
+
+    solidCheckbox.checked = !!this._solidDrivingLine;
+    solidCheckbox.addEventListener('change', () => {
+      this._solidDrivingLine = solidCheckbox.checked;
+      this._applyDrivingLineStyle();
+    });
+
+    this._applyDrivingLineStyle();
+  },
+
+  _applyDrivingLineStyle() {
+    const solid = !!this._solidDrivingLine;
+    const solidCheckbox = document.getElementById('opt-solid-driving-line');
+    if (solidCheckbox) {
+      solidCheckbox.checked = solid;
+    }
+
+    if (typeof DrivingLine !== 'undefined' && DrivingLine.setSolid) {
+      DrivingLine.setSolid(solid);
+    }
+    if (typeof DrivingLine2 !== 'undefined' && DrivingLine2.setSolid) {
+      DrivingLine2.setSolid(solid);
+    }
+    if (typeof ImageMap !== 'undefined' && ImageMap._redrawLineCanvas) {
+      ImageMap._redrawLineCanvas();
     }
   },
 
@@ -1985,7 +2020,8 @@ const App = {
       center.toArray ? center.toArray() : [center.lng, center.lat],
       this.map.getZoom(),
       this.mode === 'image',
-      this.imageFileName
+      this.imageFileName,
+      this._solidDrivingLine
     );
     data.obstacles = Obstacles.getData();
     data.workers = Workers.getData();
@@ -1999,6 +2035,10 @@ const App = {
 
   /** Load course data (from save or import) */
   _loadCourseData(data) {
+    if (Object.prototype.hasOwnProperty.call(data, 'solidDrivingLine')) {
+      this._solidDrivingLine = !!data.solidDrivingLine;
+    }
+
     if (data.cones) {
       const idMap = Cones.loadData(data.cones);
       // Restore start cone pair with mapped IDs
@@ -2033,6 +2073,7 @@ const App = {
     if (data.imageScale && this.mode === 'image') {
       this._setImageScale(data.imageScale, 'Calibrated (imported)');
     }
+    this._applyDrivingLineStyle();
     this._updateInfo();
   },
 
