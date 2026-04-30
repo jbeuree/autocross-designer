@@ -15,12 +15,6 @@ const StatsOverlay = {
     this._map = map;
     this._mode = mode;
     this._createElement();
-
-    if (mode === 'image') {
-      // Re-apply counter-scale whenever the image is panned or zoomed
-      map.on('move', () => this._updateScale());
-      map.on('zoom', () => this._updateScale());
-    }
   },
 
   /** (Re)compute stats and refresh the visible element */
@@ -53,7 +47,6 @@ const StatsOverlay = {
       } else if (wrapper) {
         wrapper.appendChild(el);
       }
-      this._updateScale();
     } else {
       // Float above the map; high z-index keeps it above Mapbox elements
       el.style.zIndex = '20';
@@ -72,10 +65,7 @@ const StatsOverlay = {
 
   /** Counter-scale the element so it stays a constant screen size in image mode */
   _updateScale() {
-    if (!this._el || this._mode !== 'image') return;
-    const scale = (typeof ImageMap !== 'undefined' ? ImageMap._scale : null) || 1;
-    this._el.style.transform = `scale(${1 / scale})`;
-    this._el.style.transformOrigin = '0 0';
+    // No-op: stats overlay intentionally scales with the background image.
   },
 
   // ── Drag ────────────────────────────────────────────────────────────────
