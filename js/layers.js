@@ -15,6 +15,7 @@ const Layers = {
       notes:       { label: 'Notes',        visible: true },
       courseOutline:{ label: 'Course Outline', visible: true },
       grid:        { label: 'Grid',         visible: true },
+      statsOverlay:{ label: 'Stats',         visible: true },
     };
 
     this._renderPanel();
@@ -136,6 +137,11 @@ const Layers = {
         const gridCanvas = document.getElementById('grid-canvas');
         if (gridCanvas && Grid.isActive()) {
           gridCanvas.style.display = visible ? 'block' : 'none';
+        }
+        break;
+      case 'statsOverlay':
+        if (typeof StatsOverlay !== 'undefined') {
+          StatsOverlay.setVisible(visible);
         }
         break;
       default:

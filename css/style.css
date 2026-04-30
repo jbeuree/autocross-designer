@@ -1303,6 +1303,26 @@ startfinish-btn {
   background: rgba(59, 130, 246, 0.28);
 }
 
+/* ===== Stats Overlay ===== */
+.stats-overlay {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 13px;
+  font-weight: bold;
+  padding: 8px;
+  border-radius: 4px;
+  cursor: move;
+  user-select: none;
+  white-space: nowrap;
+  min-width: 110px;
+  line-height: 1.4;
+  pointer-events: auto;
+}
+.stats-overlay:hover {
+  outline: 1px dashed rgba(255, 255, 255, 0.4);
+}
+
 /* ===== Image Layer Overlays ===== */
 .image-layer-overlay {
   position: absolute;
