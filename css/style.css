@@ -1283,6 +1283,76 @@ startfinish-btn {
   height: 14px;
 }
 
+/* ===== Add Image Layer Button (sidebar) ===== */
+.sidebar-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 8px;
+  margin-bottom: 6px;
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 4px;
+  color: #93c5fd;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+.sidebar-add-btn:hover {
+  background: rgba(59, 130, 246, 0.28);
+}
+
+/* ===== Image Layer Overlays ===== */
+.image-layer-overlay {
+  position: absolute;
+  box-sizing: border-box;
+  cursor: move;
+  overflow: hidden;
+}
+.image-layer-overlay:hover {
+  outline: 1px dashed rgba(59, 130, 246, 0.7);
+}
+.image-layer-overlay img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+.image-layer-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  background: #3b82f6;
+  cursor: se-resize;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.image-layer-delete-btn {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 18px;
+  height: 18px;
+  background: rgba(239, 68, 68, 0.85);
+  border-radius: 3px;
+  color: #fff;
+  font-size: 13px;
+  line-height: 18px;
+  text-align: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 1;
+}
+.image-layer-overlay:hover .image-layer-resize-handle,
+.image-layer-overlay:hover .image-layer-delete-btn {
+  opacity: 1;
+}
+
 /* ===== Venue Items ===== */
 .venue-item {
   display: flex;

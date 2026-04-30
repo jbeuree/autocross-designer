@@ -237,6 +237,10 @@
         <div id="line-length">Line: -- ft</div>
       </div>
       <h3>Layers</h3>
+      <button id="btn-add-image-layer" class="sidebar-add-btn" title="Load an image as a new layer">
+        <span>&#128444;</span> Add Image Layer
+      </button>
+      <input type="file" id="image-layer-file-input" accept="image/*" style="display:none">
       <div id="layers-list"></div>
       <h3>Notes</h3>
       <div id="notes-list"></div>
@@ -386,6 +390,7 @@
   <script src="js/history.js"></script>
   <script src="js/obstacles.js"></script>
   <script src="js/workers.js"></script>
+  <script src="js/imageLayers.js"></script>
   <script src="js/layers.js"></script>
   <script src="js/sharing.js"></script>
   <script src="js/venue.js"></script>

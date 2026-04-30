@@ -138,11 +138,31 @@ const Layers = {
           gridCanvas.style.display = visible ? 'block' : 'none';
         }
         break;
+      default:
+        if (key.startsWith('imageLayer_')) {
+          const id = parseInt(key.slice('imageLayer_'.length), 10);
+          if (typeof ImageLayers !== 'undefined') {
+            ImageLayers.setVisible(id, visible);
+          }
+        }
+        break;
     }
   },
 
   /** Check if a layer is visible */
   isVisible(key) {
     return this._layers[key] ? this._layers[key].visible : true;
+  },
+
+  /** Add a dynamic image layer entry to the panel */
+  addImageLayer(id, label) {
+    this._layers[`imageLayer_${id}`] = { label: label || `Image ${id}`, visible: true };
+    this._renderPanel();
+  },
+
+  /** Remove a dynamic image layer entry from the panel */
+  removeImageLayer(id) {
+    delete this._layers[`imageLayer_${id}`];
+    this._renderPanel();
   },
 };

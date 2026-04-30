@@ -162,6 +162,7 @@ const App = {
     });
 
     Layers.init();
+    ImageLayers.init(this.map, this.mode);
     Selection.init();
 
     // Wire up map click
@@ -1288,6 +1289,27 @@ const App = {
     document.getElementById('btn-undo').addEventListener('click', () => History.undo());
     document.getElementById('btn-redo').addEventListener('click', () => History.redo());
 
+    // Add Image Layer button (in sidebar Layers section)
+    const imageLayerFileInput = document.getElementById('image-layer-file-input');
+    document.getElementById('btn-add-image-layer').addEventListener('click', () => {
+      imageLayerFileInput.click();
+    });
+    imageLayerFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const src = ev.target.result;
+        const tmpImg = new Image();
+        tmpImg.onload = () => {
+          ImageLayers.add(src, file.name, tmpImg.naturalWidth, tmpImg.naturalHeight);
+        };
+        tmpImg.src = src;
+      };
+      reader.readAsDataURL(file);
+      imageLayerFileInput.value = '';
+    });
+
   },
 
   /** Set the active tool and update button styles */
@@ -1492,15 +1514,58 @@ const App = {
   /** Capture the map + optional grid as a downloadable image */
   _captureImage(withGrid, blackCones) {
     const mapCanvas = this.map.getCanvas();
+
+    // In image mode, compute an expanded canvas if image layers extend outside the background.
+    let originOffsetX = 0, originOffsetY = 0;
+    let exportW = mapCanvas.width, exportH = mapCanvas.height;
+    if (this.mode === 'image') {
+      let minX = 0, minY = 0;
+      let maxX = mapCanvas.width, maxY = mapCanvas.height;
+      for (const layer of ImageLayers._layers) {
+        if (!layer.visible) continue;
+        minX = Math.min(minX, layer.lngLat[0] - layer.halfW);
+        minY = Math.min(minY, layer.lngLat[1] - layer.halfH);
+        maxX = Math.max(maxX, layer.lngLat[0] + layer.halfW);
+        maxY = Math.max(maxY, layer.lngLat[1] + layer.halfH);
+      }
+      originOffsetX = Math.floor(Math.max(0, -minX));
+      originOffsetY = Math.floor(Math.max(0, -minY));
+      exportW = Math.ceil(maxX + originOffsetX);
+      exportH = Math.ceil(maxY + originOffsetY);
+    }
+
     const resultCanvas = document.createElement('canvas');
-    resultCanvas.width = mapCanvas.width;
-    resultCanvas.height = mapCanvas.height;
+    resultCanvas.width = exportW;
+    resultCanvas.height = exportH;
     const ctx = resultCanvas.getContext('2d');
+
+    const dpr = this.mode === 'image' ? 1 : window.devicePixelRatio;
+
+    // Translate all coordinate-based drawing by the expansion offset.
+    // In map mode originOffset is always 0 so this is a no-op.
+    ctx.save();
+    ctx.translate(originOffsetX, originOffsetY);
 
     // Draw the map (or image in image mode)
     ctx.drawImage(mapCanvas, 0, 0);
 
-    const dpr = this.mode === 'image' ? 1 : window.devicePixelRatio;
+    // Draw image layers — after background, before all course elements
+    for (const layer of ImageLayers._layers) {
+      if (!layer.visible) continue;
+      const img = layer.el ? layer.el.querySelector('img') : null;
+      if (!img || !img.complete) continue;
+      if (this.mode === 'image') {
+        ctx.drawImage(img,
+          layer.lngLat[0] - layer.halfW, layer.lngLat[1] - layer.halfH,
+          layer.halfW * 2, layer.halfH * 2);
+      } else {
+        const tl = this.map.project({ lng: layer.lngLat[0] - layer.halfW, lat: layer.lngLat[1] + layer.halfH });
+        const br = this.map.project({ lng: layer.lngLat[0] + layer.halfW, lat: layer.lngLat[1] - layer.halfH });
+        ctx.drawImage(img,
+          tl.x * dpr, tl.y * dpr,
+          Math.max(1, (br.x - tl.x) * dpr), Math.max(1, (br.y - tl.y) * dpr));
+      }
+    }
 
     // Draw connecting lines for cone pairs
     this._drawConnectingLinesForExport(ctx, dpr, blackCones);
@@ -1818,6 +1883,9 @@ const App = {
       }
     }
 
+    // Restore coordinate translate; grid, stats, and scale bar use absolute canvas positions.
+    ctx.restore();
+
     // Draw grid if requested
     if (withGrid && Grid.isActive()) {
       const gridCanvas = document.getElementById('grid-canvas');
@@ -2030,6 +2098,7 @@ const App = {
     data.startBeamPair = this._currentStartBeamPair.slice(); // Include start beam pair
     data.finishConePair = this._currentFinishConePair.slice(); // Include finish cone pair
     data.drivingLine2 = DrivingLine2.getData();
+    data.imageLayers = ImageLayers.getData();
     return data;
   },
 
@@ -2066,6 +2135,7 @@ const App = {
     if (data.obstacles) Obstacles.loadData(data.obstacles);
     if (data.workers) Workers.loadData(data.workers);
     if (data.courseOutline) CourseOutline.loadData(data.courseOutline);
+    if (data.imageLayers) ImageLayers.loadData(data.imageLayers);
     if (data.mapCenter && data.mapZoom && this.mode === 'map') {
       MapModule.flyTo(data.mapCenter, data.mapZoom);
     }
