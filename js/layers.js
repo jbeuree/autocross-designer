@@ -16,6 +16,7 @@ const Layers = {
       courseOutline:{ label: 'Course Outline', visible: true },
       grid:        { label: 'Grid',         visible: true },
       statsOverlay:{ label: 'Stats',         visible: true },
+      scaleOverlay:{ label: 'Scale Bar',      visible: true },
     };
 
     this._renderPanel();
@@ -142,6 +143,11 @@ const Layers = {
       case 'statsOverlay':
         if (typeof StatsOverlay !== 'undefined') {
           StatsOverlay.setVisible(visible);
+        }
+        break;
+      case 'scaleOverlay':
+        if (typeof ScaleOverlay !== 'undefined') {
+          ScaleOverlay.setVisible(visible);
         }
         break;
       default:

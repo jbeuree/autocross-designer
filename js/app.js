@@ -164,6 +164,7 @@ const App = {
     Layers.init();
     ImageLayers.init(this.map, this.mode);
     StatsOverlay.init(this.map, this.mode);
+    ScaleOverlay.init(this.map, this.mode);
     Selection.init();
 
     // Wire up map click
@@ -1884,11 +1885,12 @@ const App = {
       }
     }
 
-    // Draw stats overlay in coordinate-translated space (image coords for image mode,
-    // screen-pixel coords for map mode — originOffset is always 0 in map mode).
+    // Draw stats and scale overlays in coordinate-translated space (image coords for image
+    // mode; map mode originOffset is always 0 so translate is a no-op).
     StatsOverlay.drawOnCanvas(ctx, dpr, this.mode);
+    ScaleOverlay.drawOnCanvas(ctx, dpr, this.mode);
 
-    // Restore coordinate translate; grid and scale bar use absolute canvas positions.
+    // Restore coordinate translate; grid uses absolute canvas positions.
     ctx.restore();
 
     // Draw grid if requested
@@ -1897,9 +1899,6 @@ const App = {
       ctx.drawImage(gridCanvas, 0, 0, gridCanvas.width, gridCanvas.height,
         0, 0, resultCanvas.width, resultCanvas.height);
     }
-
-    // Draw scale bar
-    this._drawScaleBar(ctx, resultCanvas.width, resultCanvas.height, dpr);
 
     // Download
     resultCanvas.toBlob((blob) => {
@@ -2071,6 +2070,7 @@ const App = {
     data.drivingLine2 = DrivingLine2.getData();
     data.imageLayers = ImageLayers.getData();
     data.statsOverlay = StatsOverlay.getData();
+    data.scaleOverlay = ScaleOverlay.getData();
     return data;
   },
 
@@ -2109,6 +2109,7 @@ const App = {
     if (data.courseOutline) CourseOutline.loadData(data.courseOutline);
     if (data.imageLayers) ImageLayers.loadData(data.imageLayers);
     if (data.statsOverlay) StatsOverlay.loadData(data.statsOverlay);
+    if (data.scaleOverlay) ScaleOverlay.loadData(data.scaleOverlay);
     if (data.mapCenter && data.mapZoom && this.mode === 'map') {
       MapModule.flyTo(data.mapCenter, data.mapZoom);
     }
@@ -2187,6 +2188,7 @@ const App = {
     Workers.renderSidebar();
     Venue.renderSidebar();
     StatsOverlay.update();
+    ScaleOverlay.update();
   },
 
   // ===== Keyboard Shortcuts =====

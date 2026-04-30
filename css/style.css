@@ -1323,6 +1323,17 @@ startfinish-btn {
   outline: 1px dashed rgba(255, 255, 255, 0.4);
 }
 
+/* ===== Scale Bar Overlay ===== */
+.scale-overlay {
+  position: absolute;
+  cursor: move;
+  user-select: none;
+  pointer-events: auto;
+}
+.scale-overlay:hover canvas {
+  outline: 1px dashed rgba(255, 255, 255, 0.4);
+}
+
 /* ===== Image Layer Overlays ===== */
 .image-layer-overlay {
   position: absolute;
