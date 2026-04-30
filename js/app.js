@@ -2072,6 +2072,13 @@ const App = {
     data.imageLayers = ImageLayers.getData();
     data.statsOverlay = StatsOverlay.getData();
     data.scaleOverlay = ScaleOverlay.getData();
+    if (this.mode === 'image' && ImageMap._imageWidth > 0) {
+      const bgCanvas = document.createElement('canvas');
+      bgCanvas.width = ImageMap._imageWidth;
+      bgCanvas.height = ImageMap._imageHeight;
+      bgCanvas.getContext('2d').drawImage(ImageMap._bgCanvas || ImageMap._image, 0, 0);
+      data.backgroundImage = bgCanvas.toDataURL('image/png');
+    }
     return data;
   },
 
@@ -2111,6 +2118,18 @@ const App = {
     if (data.imageLayers) ImageLayers.loadData(data.imageLayers);
     if (data.statsOverlay) StatsOverlay.loadData(data.statsOverlay);
     if (data.scaleOverlay) ScaleOverlay.loadData(data.scaleOverlay);
+    if (data.backgroundImage && this.mode === 'image') {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        ImageMap.updateBackground(canvas, 0, 0);
+        ImageMap.fitToView();
+      };
+      img.src = data.backgroundImage;
+    }
     if (data.mapCenter && data.mapZoom && this.mode === 'map') {
       MapModule.flyTo(data.mapCenter, data.mapZoom);
     }

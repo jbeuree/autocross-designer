@@ -498,6 +498,19 @@ const ImageMap = {
     this.fire('move');
   },
 
+  /** Fit and center the image in the viewport (same logic as initial load) */
+  fitToView() {
+    const containerRect = this._container.getBoundingClientRect();
+    const scaleX = containerRect.width / this._imageWidth;
+    const scaleY = containerRect.height / this._imageHeight;
+    this._scale = Math.min(scaleX, scaleY) * 0.9;
+    this._offsetX = (containerRect.width - this._imageWidth * this._scale) / 2;
+    this._offsetY = (containerRect.height - this._imageHeight * this._scale) / 2;
+    this._applyTransform();
+    this.fire('move');
+    this.fire('zoom');
+  },
+
   getCenter() {
     const cx = this._imageWidth / 2;
     const cy = this._imageHeight / 2;
