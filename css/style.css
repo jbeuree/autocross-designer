@@ -1334,6 +1334,44 @@ startfinish-btn {
   outline: 1px dashed rgba(255, 255, 255, 0.4);
 }
 
+/* ===== Image Crop Handles ===== */
+.image-crop-handle-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 18;
+}
+.image-crop-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 2px solid rgba(59, 130, 246, 0.9);
+  border-radius: 3px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  transition: transform 0.1s, background 0.1s;
+}
+.image-crop-handle[data-corner="tl"],
+.image-crop-handle[data-corner="br"] { cursor: nwse-resize; }
+.image-crop-handle[data-corner="tr"],
+.image-crop-handle[data-corner="bl"] { cursor: nesw-resize; }
+.image-crop-handle:hover,
+.image-crop-handle.dragging {
+  background: rgba(59, 130, 246, 0.9);
+  transform: translate(-50%, -50%) scale(1.25);
+}
+.image-crop-preview {
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: none;
+  border: 2px dashed rgba(59, 130, 246, 0.85);
+  background: rgba(59, 130, 246, 0.06);
+  z-index: 17;
+}
+
 /* ===== Image Layer Overlays ===== */
 .image-layer-overlay {
   position: absolute;

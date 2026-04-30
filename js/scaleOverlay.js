@@ -17,6 +17,18 @@ const ScaleOverlay = {
   init(map, mode) {
     this._map = map;
     this._mode = mode;
+    // Default: bottom-center (computed from container dimensions).
+    // loadData() will override this when restoring a saved course.
+    const barTotalW = this._BAR_W + this._PADDING * 2 + 12;  // ~224
+    const barTotalH = this._LABEL_H + this._PADDING * 2 + this._BAR_H + 4; // ~42
+    if (mode === 'image') {
+      const w = ImageMap._imageWidth  || 800;
+      const h = ImageMap._imageHeight || 600;
+      this._pos = [Math.round((w - barTotalW) / 2), h - barTotalH - 10];
+    } else {
+      const rect = document.getElementById('map').getBoundingClientRect();
+      this._pos = [Math.round((rect.width - barTotalW) / 2), rect.height - barTotalH - 10];
+    }
     this._createElement();
     this.update();
 

@@ -14,6 +14,16 @@ const StatsOverlay = {
   init(map, mode) {
     this._map = map;
     this._mode = mode;
+    // Default: bottom-right corner (computed from container dimensions).
+    // loadData() will override this when restoring a saved course.
+    if (mode === 'image') {
+      const w = ImageMap._imageWidth  || 800;
+      const h = ImageMap._imageHeight || 600;
+      this._pos = [w - 140, h - 50];
+    } else {
+      const rect = document.getElementById('map').getBoundingClientRect();
+      this._pos = [rect.width - 140, rect.height - 50];
+    }
     this._createElement();
   },
 

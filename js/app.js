@@ -165,6 +165,7 @@ const App = {
     ImageLayers.init(this.map, this.mode);
     StatsOverlay.init(this.map, this.mode);
     ScaleOverlay.init(this.map, this.mode);
+    if (this.mode === 'image') ImageCrop.init();
     Selection.init();
 
     // Wire up map click

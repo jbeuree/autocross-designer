@@ -206,6 +206,7 @@ const ImageMap = {
     this._scale = 1;
     this._offsetX = 0;
     this._offsetY = 0;
+    this._bgCanvas = null;
 
     // Create wrapper (transformed for pan/zoom)
     this._wrapper = document.createElement('div');
@@ -367,7 +368,7 @@ const ImageMap = {
         this._suppressNextClick = false;
         return;
       }
-      if (e.target.closest('.cone-marker, .waypoint-marker, .note-marker, .arrow-marker, .obstacle-marker, .worker-marker, .measurement-endpoint, .measurement-label')) return;
+      if (e.target.closest('.cone-marker, .waypoint-marker, .note-marker, .arrow-marker, .obstacle-marker, .worker-marker, .measurement-endpoint, .measurement-label, .image-crop-handle')) return;
       const coords = this._screenToImage(e.clientX, e.clientY);
       this.fire('click', {
         lngLat: { lng: coords[0], lat: coords[1] },
@@ -442,17 +443,59 @@ const ImageMap = {
 
   // --- Map API stubs ---
   getCanvas() {
-    // Render image + line canvas to a result canvas
+    // Render background + line canvas to a result canvas
     const canvas = document.createElement('canvas');
     canvas.width = this._imageWidth;
     canvas.height = this._imageHeight;
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(this._image, 0, 0);
-    // Draw the line canvas on top
+    ctx.drawImage(this._bgCanvas || this._image, 0, 0);
     if (this._lineCanvas) {
       ctx.drawImage(this._lineCanvas, 0, 0);
     }
     return canvas;
+  },
+
+  /**
+   * Apply a cropped / extended background canvas.
+   * @param {HTMLCanvasElement} newCanvas  new background at its new dimensions
+   * @param {number} oldLeft  left boundary in old image pixel coords (negative = extend)
+   * @param {number} oldTop   top boundary in old image pixel coords (negative = extend)
+   */
+  updateBackground(newCanvas, oldLeft, oldTop) {
+    const newW = newCanvas.width;
+    const newH = newCanvas.height;
+    const dx   = -oldLeft;
+    const dy   = -oldTop;
+
+    this._bgCanvas = newCanvas;
+
+    const dataURL = newCanvas.toDataURL('image/png');
+    this._wrapper.style.width  = newW + 'px';
+    this._wrapper.style.height = newH + 'px';
+    this._wrapper.style.backgroundImage = `url("${dataURL}")`;
+
+    // Resize line canvas (redrawn by _redrawLineCanvas below)
+    this._lineCanvas.width  = newW;
+    this._lineCanvas.height = newH;
+
+    // Translate all marker DOM positions
+    if (dx !== 0 || dy !== 0) {
+      for (const marker of this._markers) {
+        const pos = marker.getLngLat();
+        if (pos) marker.setLngLat({ lng: pos.lng + dx, lat: pos.lat + dy });
+      }
+    }
+
+    // Adjust pan offset so the old image origin stays at the same screen position
+    this._offsetX += oldLeft * this._scale;
+    this._offsetY += oldTop  * this._scale;
+
+    this._imageWidth  = newW;
+    this._imageHeight = newH;
+
+    this._applyTransform();
+    this._redrawLineCanvas();
+    this.fire('move');
   },
 
   getCenter() {
