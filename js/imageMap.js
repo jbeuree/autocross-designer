@@ -79,11 +79,21 @@ class ImageMarker {
 
   _updatePosition() {
     if (!this._lngLat) return;
+    // Clamp marker position to image bounds (image pixel coordinates)
+    if (this._map && this._map._imageWidth && this._map._imageHeight) {
+      const maxX = this._map._imageWidth;
+      const maxY = this._map._imageHeight;
+      if (typeof this._lngLat.lng === 'number') {
+        this._lngLat.lng = Math.max(0, Math.min(maxX, this._lngLat.lng));
+      }
+      if (typeof this._lngLat.lat === 'number') {
+        this._lngLat.lat = Math.max(0, Math.min(maxY, this._lngLat.lat));
+      }
+    }
     // Position in image pixel coordinates — the wrapper's CSS transform handles pan/zoom
     this._container.style.left = this._lngLat.lng + 'px';
     this._container.style.top = this._lngLat.lat + 'px';
     // Counter-scale so markers stay a constant screen size regardless of zoom
-    // const scale = this._map ? (this._map._scale || 1) : 1;
     const scale = 2;
     this._container.style.transform = `translate(-50%, -50%) scale(${1/scale})`;
   }
@@ -370,6 +380,12 @@ const ImageMap = {
       }
       if (e.target.closest('.cone-marker, .waypoint-marker, .note-marker, .arrow-marker, .obstacle-marker, .worker-marker, .measurement-endpoint, .measurement-label, .image-crop-handle')) return;
       const coords = this._screenToImage(e.clientX, e.clientY);
+      // Ignore clicks that fall outside the loaded image bounds
+      if (this._imageWidth && this._imageHeight) {
+        if (coords[0] < 0 || coords[0] > this._imageWidth || coords[1] < 0 || coords[1] > this._imageHeight) {
+          return;
+        }
+      }
       this.fire('click', {
         lngLat: { lng: coords[0], lat: coords[1] },
         point: { x: e.clientX, y: e.clientY },
