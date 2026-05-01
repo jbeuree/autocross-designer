@@ -41,8 +41,11 @@
 
   <!-- Left Toolbar -->
   <div id="toolbar">
-    <div class="toolbar-section">
-      <div class="toolbar-label">Place Cones</div>
+    <div class="toolbar-section" data-section="place-cones">
+      <div class="toolbar-label" role="button" tabindex="0" aria-expanded="true">
+        <span class="toolbar-toggle" aria-hidden="true">▾</span>
+        <span class="toolbar-label-text">Place Cones</span>
+      </div>
       <button class="tool-btn" data-tool="regular" title="Regular Cone (orange)">
         <span class="cone-icon cone-regular"></span>
         Regular
@@ -86,8 +89,11 @@
         Finish Beam
       </button>
     </div>
-    <div class="toolbar-section">
-      <div class="toolbar-label">Place Elements</div>
+    <div class="toolbar-section" data-section="place-elements">
+      <div class="toolbar-label" role="button" tabindex="0" aria-expanded="true">
+        <span class="toolbar-toggle" aria-hidden="true">▾</span>
+        <span class="toolbar-label-text">Place Elements</span>
+      </div>
       <button class="tool-btn" data-tool="cleartext" title="Clear Text">
         <span class="element-icon">&#128462;</span>
         Text
@@ -117,8 +123,11 @@
         <option value="pothole">Pothole</option>
       </select>
     </div>
-    <div class="toolbar-section">
-      <div class="toolbar-label">Tools</div>
+    <div class="toolbar-section" data-section="tools">
+      <div class="toolbar-label" role="button" tabindex="0" aria-expanded="true">
+        <span class="toolbar-toggle" aria-hidden="true">▾</span>
+        <span class="toolbar-label-text">Tools</span>
+      </div>
       <button class="tool-btn" data-tool="select" title="Box Select (one-shot)">
         <span class="tool-icon">&#9997;</span>
         Select
@@ -160,16 +169,22 @@
         Redo
       </button>
     </div>
-    <div class="toolbar-section image-mode-only hidden">
-      <div class="toolbar-label">Scale</div>
+    <div class="toolbar-section image-mode-only hidden" data-section="scale">
+      <div class="toolbar-label" role="button" tabindex="0" aria-expanded="true">
+        <span class="toolbar-toggle" aria-hidden="true">▾</span>
+        <span class="toolbar-label-text">Scale</span>
+      </div>
       <button class="tool-btn" data-tool="scale" title="Set image scale by marking two points">
         <span class="tool-icon">&#128207;</span>
         Set Scale
       </button>
       <div id="scale-status" class="toolbar-hint">Not calibrated</div>
     </div>
-    <div class="toolbar-section">
-      <div class="toolbar-label">View</div>
+    <div class="toolbar-section" data-section="view">
+      <div class="toolbar-label" role="button" tabindex="0" aria-expanded="true">
+        <span class="toolbar-toggle" aria-hidden="true">▾</span>
+        <span class="toolbar-label-text">View</span>
+      </div>
       <div id="map-opacity-control">
         <label class="toolbar-sublabel" for="map-opacity">Map Opacity</label>
         <input type="range" id="map-opacity" min="10" max="100" value="100">
@@ -191,8 +206,11 @@
         Light
       </button>
     </div>
-    <div class="toolbar-section">
-      <div class="toolbar-label">Course</div>
+    <div class="toolbar-section" data-section="course">
+      <div class="toolbar-label" role="button" tabindex="0" aria-expanded="true">
+        <span class="toolbar-toggle" aria-hidden="true">▾</span>
+        <span class="toolbar-label-text">Course</span>
+      </div>
       <button class="tool-btn" id="btn-help" title="How to Use">
         <span class="tool-icon">&#63;</span>
         Help
@@ -241,22 +259,42 @@
         <div id="cone-count">Cones: 0</div>
         <div id="line-length">Line: -- ft</div>
       </div>
-      <h3>Layers</h3>
-      <button id="btn-add-image-layer" class="sidebar-add-btn" title="Load an image as a new layer">
-        <span>&#128444;</span> Add Image Layer
-      </button>
-      <input type="file" id="image-layer-file-input" accept="image/*" style="display:none">
-      <div id="layers-list"></div>
-      <h3>Notes</h3>
-      <div id="notes-list"></div>
-      <h3>Workers</h3>
-      <div id="workers-list"></div>
-      <h3>Options</h3>
-      <div id="options-list">
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;">
-          <input type="checkbox" id="opt-solid-driving-line">
-          <span>Solid Driving Line</span>
-        </label>
+      <div class="toolbar-section" data-section="sidebar-layers">
+        <div class="toolbar-label" role="button" tabindex="0" aria-expanded="true">
+          <span class="toolbar-toggle" aria-hidden="true">▾</span>
+          <span class="toolbar-label-text">Layers</span>
+        </div>
+        <button id="btn-add-image-layer" class="sidebar-add-btn" title="Load an image as a new layer">
+          <span>&#128444;</span> Add Image Layer
+        </button>
+        <input type="file" id="image-layer-file-input" accept="image/*" style="display:none">
+        <div id="layers-list"></div>
+      </div>
+      <div class="toolbar-section" data-section="sidebar-notes">
+        <div class="toolbar-label" role="button" tabindex="0" aria-expanded="true">
+          <span class="toolbar-toggle" aria-hidden="true">▾</span>
+          <span class="toolbar-label-text">Notes</span>
+        </div>
+        <div id="notes-list"></div>
+      </div>
+      <div class="toolbar-section" data-section="sidebar-workers">
+        <div class="toolbar-label" role="button" tabindex="0" aria-expanded="true">
+          <span class="toolbar-toggle" aria-hidden="true">▾</span>
+          <span class="toolbar-label-text">Workers</span>
+        </div>
+        <div id="workers-list"></div>
+      </div>
+      <div class="toolbar-section" data-section="sidebar-options">
+        <div class="toolbar-label" role="button" tabindex="0" aria-expanded="true">
+          <span class="toolbar-toggle" aria-hidden="true">▾</span>
+          <span class="toolbar-label-text">Options</span>
+        </div>
+        <div id="options-list">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;">
+            <input type="checkbox" id="opt-solid-driving-line" checked>
+            <span>Solid Driving Line</span>
+          </label>
+        </div>
       </div>
     </div>
   </div>

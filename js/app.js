@@ -11,7 +11,7 @@ const App = {
   map: null,
   mode: 'map',           // 'map' or 'image'
   imageFileName: null,    // name of loaded image file (image mode only)
-  _solidDrivingLine: false,
+  _solidDrivingLine: true,
   _scalePoints: [],       // temp array for scale calibration clicks [{x,y}]
   _scaleMarkers: [],      // temp DOM elements for scale point display
   _scaleLine: null,       // temp SVG line overlay
@@ -83,6 +83,59 @@ const App = {
       };
       this.map.on('zoom', updateMarkerScale);
       updateMarkerScale();
+    });
+  },
+
+  /** Set up collapsible toolbar sections */
+  _setupToolbarSections() {
+    const STORAGE_KEY = 'toolbarSectionsCollapsed';
+    let collapsed = [];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) collapsed = JSON.parse(raw);
+    } catch (e) {
+      collapsed = [];
+    }
+
+    document.querySelectorAll('#toolbar .toolbar-section').forEach((section, idx) => {
+      const key = section.dataset.section || `toolbar-${idx}`;
+      const label = section.querySelector('.toolbar-label');
+      if (!label) return;
+
+      label.setAttribute('role', 'button');
+      label.tabIndex = 0;
+
+      const isCollapsed = collapsed.includes(key);
+      if (isCollapsed) {
+        section.classList.add('collapsed');
+        label.setAttribute('aria-expanded', 'false');
+      } else {
+        label.setAttribute('aria-expanded', 'true');
+      }
+
+      const toggle = () => {
+        const nowCollapsed = section.classList.toggle('collapsed');
+        label.setAttribute('aria-expanded', String(!nowCollapsed));
+        try {
+          if (nowCollapsed) {
+            if (!collapsed.includes(key)) collapsed.push(key);
+          } else {
+            collapsed = collapsed.filter(k => k !== key);
+          }
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(collapsed));
+        } catch (e) {}
+      };
+
+      label.addEventListener('click', (e) => {
+        toggle();
+      });
+
+      label.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          toggle();
+        }
+      });
     });
   },
 
@@ -177,8 +230,14 @@ const App = {
     // Wire up toolbar buttons
     this._setupToolbar();
 
+    // Wire up collapsible toolbar sections
+    this._setupToolbarSections();
+
     // Wire up sidebar
     this._setupSidebar();
+
+    // Wire up collapsible sidebar sections
+    this._setupSidebarSections();
 
     // Wire up course options
     this._setupOptions();
@@ -2521,6 +2580,56 @@ const App = {
     } catch {
       return null;
     }
+  },
+
+  /** Set up collapsible sidebar sections (right sidebar) */
+  _setupSidebarSections() {
+    const STORAGE_KEY = 'sidebarSectionsCollapsed';
+    let collapsed = [];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) collapsed = JSON.parse(raw);
+    } catch (e) {
+      collapsed = [];
+    }
+
+    document.querySelectorAll('#sidebar-content .toolbar-section').forEach((section, idx) => {
+      const key = section.dataset.section || `sidebar-${idx}`;
+      const label = section.querySelector('.toolbar-label');
+      if (!label) return;
+
+      label.setAttribute('role', 'button');
+      label.tabIndex = 0;
+
+      const isCollapsed = collapsed.includes(key);
+      if (isCollapsed) {
+        section.classList.add('collapsed');
+        label.setAttribute('aria-expanded', 'false');
+      } else {
+        label.setAttribute('aria-expanded', 'true');
+      }
+
+      const toggle = () => {
+        const nowCollapsed = section.classList.toggle('collapsed');
+        label.setAttribute('aria-expanded', String(!nowCollapsed));
+        try {
+          if (nowCollapsed) {
+            if (!collapsed.includes(key)) collapsed.push(key);
+          } else {
+            collapsed = collapsed.filter(k => k !== key);
+          }
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(collapsed));
+        } catch (e) {}
+      };
+
+      label.addEventListener('click', () => toggle());
+      label.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          toggle();
+        }
+      });
+    });
   },
 };
 
