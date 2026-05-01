@@ -392,10 +392,9 @@ const App = {
         break;
 
       case 'select':
-        // Clicking on empty map deselects and reverts to previous tool
+        // Clicking on empty map deselects without switching tools
         this._deselectCone();
         Selection.clear();
-        this._setActiveTool(this._previousTool);
         break;
 
       case 'drivingline':

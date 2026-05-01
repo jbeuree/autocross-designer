@@ -1545,8 +1545,20 @@ startfinish-btn {
 .gate-width-row {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
+  gap: 6px;
+  margin: 6px 0 4px 0;
+  margin-left: 28px;
+  color: rgba(255,255,255,0.9);
+  font-size: 13px;
+}
+
+.gate-width-row::before {
+  content: "↳";
+  color: rgba(255,255,255,0.6);
+  margin-right: 6px;
+  font-size: 12px;
+  display: inline-block;
+  line-height: 1;
 }
 
 #gate-width-input {
@@ -1571,8 +1583,20 @@ startfinish-btn {
 .start-cone-width-row {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
+  gap: 6px;
+  margin: 6px 0 4px 0;
+  margin-left: 28px;
+  color: rgba(255,255,255,0.9);
+  font-size: 13px;
+}
+
+.start-cone-width-row::before {
+  content: "↳";
+  color: rgba(255,255,255,0.6);
+  margin-right: 6px;
+  font-size: 12px;
+  display: inline-block;
+  line-height: 1;
 }
 
 #start-cone-width-input {
