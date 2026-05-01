@@ -24,10 +24,35 @@ const ImageCrop = {
       const el = document.createElement('div');
       el.className = 'image-crop-handle';
       el.dataset.corner = corner;
+      el.style.opacity = '0';
+      el.style.pointerEvents = 'none';
       this._handleContainer.appendChild(el);
       this._setupDrag(el, corner);
       this._handles.push(el);
     }
+
+    // Show handles on proximity, hide on leave
+    const PROXIMITY = 40;
+    container.addEventListener('mousemove', (e) => {
+      const rect = container.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      for (const el of this._handles) {
+        if (el.classList.contains('dragging')) continue;
+        const dist = Math.hypot(mx - (parseFloat(el.style.left) || 0), my - (parseFloat(el.style.top) || 0));
+        const near = dist <= PROXIMITY;
+        el.style.opacity = near ? '1' : '0';
+        el.style.pointerEvents = near ? 'auto' : 'none';
+      }
+    });
+    container.addEventListener('mouseleave', () => {
+      for (const el of this._handles) {
+        if (!el.classList.contains('dragging')) {
+          el.style.opacity = '0';
+          el.style.pointerEvents = 'none';
+        }
+      }
+    });
 
     const reposition = () => this._repositionHandles();
     if (ImageMap._loaded) {
@@ -70,6 +95,8 @@ const ImageCrop = {
       origImgY = corner.includes('b') ? ImageMap._imageHeight : 0;
 
       el.classList.add('dragging');
+      el.style.opacity = '1';
+      el.style.pointerEvents = 'auto';
       this._showPreview(corner, origImgX, origImgY);
       document.addEventListener('mousemove', onMouseMove);
       document.addEventListener('mouseup',   onMouseUp);

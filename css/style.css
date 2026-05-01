@@ -1352,7 +1352,7 @@ startfinish-btn {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
   transform: translate(-50%, -50%);
   pointer-events: auto;
-  transition: transform 0.1s, background 0.1s;
+  transition: transform 0.1s, background 0.1s, opacity 0.15s;
 }
 .image-crop-handle[data-corner="tl"],
 .image-crop-handle[data-corner="br"] { cursor: nwse-resize; }
