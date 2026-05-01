@@ -230,7 +230,7 @@ const ImageLayers = {
   _setupResize(handle, layer) {
     let resizing = false;
     let startX, startY;
-    let startHalfW, startHalfH;
+    let startHalfW, startHalfH, startAR;
 
     const onMouseDown = (e) => {
       if (e.button !== 0) return;
@@ -241,6 +241,7 @@ const ImageLayers = {
       startY = e.clientY;
       startHalfW = layer.halfW;
       startHalfH = layer.halfH;
+      startAR = layer.halfH / layer.halfW;
       document.addEventListener('mousemove', onMouseMove);
       document.addEventListener('mouseup', onMouseUp);
     };
@@ -252,15 +253,34 @@ const ImageLayers = {
 
       if (this._mode === 'image') {
         const scale = ImageMap._scale || 1;
-        layer.halfW = Math.max(10, startHalfW + dx / scale);
-        layer.halfH = Math.max(10, startHalfH + dy / scale);
+        let newHalfW = Math.max(10, startHalfW + dx / scale);
+        let newHalfH = Math.max(10, startHalfH + dy / scale);
+        if (e.shiftKey) {
+          // Drive from whichever axis moved more
+          if (Math.abs(dx) >= Math.abs(dy)) {
+            newHalfH = newHalfW * startAR;
+          } else {
+            newHalfW = newHalfH / startAR;
+          }
+        }
+        layer.halfW = newHalfW;
+        layer.halfH = newHalfH;
       } else {
         // Move the bottom-right geographic corner
         const origBR = { lng: layer.lngLat[0] + startHalfW, lat: layer.lngLat[1] - startHalfH };
         const origBRScreen = this._map.project(origBR);
         const newBR = this._map.unproject({ x: origBRScreen.x + dx, y: origBRScreen.y + dy });
-        layer.halfW = Math.max(1e-6, Math.abs(newBR.lng - layer.lngLat[0]));
-        layer.halfH = Math.max(1e-6, Math.abs(layer.lngLat[1] - newBR.lat));
+        let newHalfW = Math.max(1e-6, Math.abs(newBR.lng - layer.lngLat[0]));
+        let newHalfH = Math.max(1e-6, Math.abs(layer.lngLat[1] - newBR.lat));
+        if (e.shiftKey) {
+          if (Math.abs(dx) >= Math.abs(dy)) {
+            newHalfH = newHalfW * startAR;
+          } else {
+            newHalfW = newHalfH / startAR;
+          }
+        }
+        layer.halfW = newHalfW;
+        layer.halfH = newHalfH;
       }
       this._positionElement(layer);
     };
