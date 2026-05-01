@@ -192,6 +192,7 @@ const ImageLayers = {
       if (e.button !== 0) return;
       e.stopPropagation();
       e.preventDefault();
+      if (typeof App !== 'undefined') App._setActiveTool('select');
       dragging = true;
       startX = e.clientX;
       startY = e.clientY;
@@ -236,6 +237,7 @@ const ImageLayers = {
       if (e.button !== 0) return;
       e.stopPropagation();
       e.preventDefault();
+      if (typeof App !== 'undefined') App._setActiveTool('select');
       resizing = true;
       startX = e.clientX;
       startY = e.clientY;
