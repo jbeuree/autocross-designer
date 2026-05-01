@@ -13,7 +13,6 @@ const Layers = {
       drivingLine2: { label: 'Driving Line 2', visible: true },
       measurements:{ label: 'Measurements', visible: true },
       notes:       { label: 'Notes',        visible: true },
-      courseOutline:{ label: 'Course Outline', visible: true },
       grid:        { label: 'Grid',         visible: true },
       statsOverlay:{ label: 'Stats',         visible: true },
       scaleOverlay:{ label: 'Scale Bar',      visible: true },
@@ -116,18 +115,7 @@ const Layers = {
           if (m.svgEl) m.svgEl.style.display = display;
         });
         break;
-      case 'courseOutline':
-        if (typeof CourseOutline !== 'undefined') {
-          const display = visible ? '' : 'none';
-          CourseOutline.segments.forEach(seg => {
-            seg.markers.forEach(mk => {
-              mk.getElement().style.display = display;
-              if (mk._container) mk._container.style.display = display;
-            });
-            if (seg.svgEl) seg.svgEl.style.display = display;
-          });
-        }
-        break;
+      // courseOutline layer removed
       case 'notes':
         Notes.notes.forEach(n => {
           n.marker.getElement().style.display = visible ? '' : 'none';

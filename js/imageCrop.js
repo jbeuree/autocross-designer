@@ -271,22 +271,7 @@ const ImageCrop = {
       if (Measurements._pendingPoint) shift(Measurements._pendingPoint);
       Measurements.updateAllLabels();
     }
-    if (typeof CourseOutline !== 'undefined') {
-      for (const seg of CourseOutline.segments) {
-        shift(seg.points[0]);
-        shift(seg.points[1]);
-        shift(seg.controlPoint);
-      }
-      if (CourseOutline._pendingPoint) shift(CourseOutline._pendingPoint);
-      CourseOutline.updateAllPositions();
-      // Update SVG canvas size for image-mode outline segments
-      for (const seg of CourseOutline.segments) {
-        if (seg.svgEl && typeof App !== 'undefined' && App.mode === 'image') {
-          seg.svgEl.setAttribute('width',  ImageMap._imageWidth);
-          seg.svgEl.setAttribute('height', ImageMap._imageHeight);
-        }
-      }
-    }
+    // CourseOutline handling removed
     if (typeof ImageLayers !== 'undefined') {
       for (const layer of ImageLayers._layers) {
         layer.lngLat = [layer.lngLat[0] + dx, layer.lngLat[1] + dy];

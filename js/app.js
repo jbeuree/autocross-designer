@@ -198,7 +198,6 @@ const App = {
     });
 
     Measurements.init(this.map);
-    CourseOutline.init(this.map);
 
     Notes.init(this.map, {
       onUpdate: () => this._updateInfo(),
@@ -410,11 +409,6 @@ const App = {
       case 'measure':
         Measurements.handleClick(lngLat, e.point);
         break;
-
-      case 'courseoutline':
-        CourseOutline.handleClick(lngLat);
-        break;
-
       case 'note':
         History.push();
         Notes.addNote(lngLat);
@@ -549,12 +543,7 @@ const App = {
       return;
     }
 
-    // Course outline preview line
-    if (this.activeTool === 'courseoutline' && CourseOutline._pendingPoint) {
-      const from = { lng: CourseOutline._pendingPoint[0], lat: CourseOutline._pendingPoint[1] };
-      this._showPreviewLine(from, lngLat);
-      return;
-    }
+    // CourseOutline tool removed; no outline preview
 
     if (this.activeTool !== 'select' || !this.selectedCone) return;
     if (this.mode === 'image' && !ImageMap.hasScale()) return;
@@ -1387,11 +1376,7 @@ const App = {
       this._hidePreviewLine();
     }
 
-    // Cancel pending outline if switching away
-    if (this.activeTool === 'courseoutline' && tool !== 'courseoutline') {
-      CourseOutline.cancelPending();
-      this._hidePreviewLine();
-    }
+    // CourseOutline tool removed
 
     // Cancel slalom start if switching away
     if (this.activeTool === 'slalom' && tool !== 'slalom') {
@@ -1894,29 +1879,7 @@ const App = {
       }
     }
 
-    // Draw course outline segments
-    if (Layers.isVisible('courseOutline')) {
-      for (const seg of CourseOutline.segments) {
-        const p1pos = this.mode === 'image'
-          ? { x: seg.points[0][0], y: seg.points[0][1] }
-          : this.map.project(seg.points[0]);
-        const p2pos = this.mode === 'image'
-          ? { x: seg.points[1][0], y: seg.points[1][1] }
-          : this.map.project(seg.points[1]);
-        const cppos = this.mode === 'image'
-          ? { x: seg.controlPoint[0], y: seg.controlPoint[1] }
-          : this.map.project(seg.controlPoint);
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(p1pos.x * dpr, p1pos.y * dpr);
-        ctx.quadraticCurveTo(cppos.x * dpr, cppos.y * dpr, p2pos.x * dpr, p2pos.y * dpr);
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 3 * dpr;
-        ctx.stroke();
-        ctx.restore();
-      }
-    }
+    // CourseOutline rendering removed
 
     // Draw note markers
     if (Layers.isVisible('notes')) {
@@ -2122,7 +2085,6 @@ const App = {
     );
     data.obstacles = Obstacles.getData();
     data.workers = Workers.getData();
-    data.courseOutline = CourseOutline.getData();
     data.startConePair = this._currentStartConePair.slice(); // Include start cone pair
     data.startBeamPair = this._currentStartBeamPair.slice(); // Include start beam pair
     data.finishConePair = this._currentFinishConePair.slice(); // Include finish cone pair
@@ -2172,7 +2134,6 @@ const App = {
     if (data.notes) Notes.loadData(data.notes);
     if (data.obstacles) Obstacles.loadData(data.obstacles);
     if (data.workers) Workers.loadData(data.workers);
-    if (data.courseOutline) CourseOutline.loadData(data.courseOutline);
     if (data.imageLayers) ImageLayers.loadData(data.imageLayers);
     if (data.statsOverlay) StatsOverlay.loadData(data.statsOverlay);
     if (data.scaleOverlay) ScaleOverlay.loadData(data.scaleOverlay);
@@ -2320,9 +2281,7 @@ const App = {
         if (this.activeTool === 'measure') {
           Measurements.cancelPending();
         }
-        if (this.activeTool === 'courseoutline') {
-          CourseOutline.cancelPending();
-        }
+        // CourseOutline tool removed
         this._setActiveTool('select');
         return;
       }
