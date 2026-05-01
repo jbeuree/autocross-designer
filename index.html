@@ -41,6 +41,8 @@
 
   <!-- Left Toolbar -->
   <div id="toolbar">
+    
+
     <div class="toolbar-section" data-section="place-cones">
       <div class="toolbar-label" role="button" tabindex="0" aria-expanded="true">
         <span class="toolbar-toggle" aria-hidden="true">▾</span>
@@ -114,24 +116,32 @@
         <span class="tool-icon" style="color:#ef4444">&#9888;</span>
         Obstacle
       </button>
-      <select id="obstacle-type-select" class="obstacle-type-select">
-        <option value="hazard">Hazard</option>
-        <option value="pole">Light Pole</option>
-        <option value="drain">Drain</option>
-        <option value="curb">Curb</option>
-        <option value="building">Building</option>
-        <option value="pothole">Pothole</option>
-      </select>
+      <div class="obstacle-type-row">
+        <label class="toolbar-sublabel" for="obstacle-type-select">Type</label>
+        <select id="obstacle-type-select" class="obstacle-type-select">
+          <option value="hazard">Hazard</option>
+          <option value="pole">Light Pole</option>
+          <option value="drain">Drain</option>
+          <option value="curb">Curb</option>
+          <option value="building">Building</option>
+          <option value="pothole">Pothole</option>
+        </select>
+      </div>
+      <button class="tool-btn" data-tool="note" title="Add Map Note">
+        <span class="tool-icon">&#128221;</span>
+        Note
+      </button>
+      <button class="tool-btn" id="btn-add-image-layer" title="Load an image as a new layer">
+        <span class="tool-icon">&#128444;</span>
+        Add Image Layer
+      </button>
+      <input type="file" id="image-layer-file-input" accept="image/*" style="display:none">
     </div>
-    <div class="toolbar-section" data-section="tools">
+    <div class="toolbar-section" data-section="driving-line">
       <div class="toolbar-label" role="button" tabindex="0" aria-expanded="true">
         <span class="toolbar-toggle" aria-hidden="true">▾</span>
-        <span class="toolbar-label-text">Tools</span>
+        <span class="toolbar-label-text">Driving Line</span>
       </div>
-      <button class="tool-btn" data-tool="select" title="Box Select (one-shot)">
-        <span class="tool-icon">&#9997;</span>
-        Select
-      </button>
       <button class="tool-btn" data-tool="drivingline" title="Draw Driving Line">
         <span class="tool-icon">&#10137;</span>
         Line
@@ -148,14 +158,16 @@
         <span class="tool-icon" style="color:#f97316">&#10060;</span>
         Clear Line 2
       </button>
-      <button class="tool-btn" data-tool="measure" title="Measure Distance (click two points)">
-        <span class="tool-icon">&#128207;</span>
-        Measure
-      </button>
-      <!-- Outline tool removed -->
-      <button class="tool-btn" data-tool="note" title="Add Map Note">
-        <span class="tool-icon">&#128221;</span>
-        Note
+    </div>
+
+    <div class="toolbar-section" data-section="tools">
+      <div class="toolbar-label" role="button" tabindex="0" aria-expanded="true">
+        <span class="toolbar-toggle" aria-hidden="true">▾</span>
+        <span class="toolbar-label-text">Tools</span>
+      </div>
+      <button class="tool-btn" data-tool="select" title="Box Select (one-shot)">
+        <span class="tool-icon">&#9997;</span>
+        Select
       </button>
       <button class="tool-btn" id="btn-undo" title="Undo (Ctrl+Z)" disabled>
         <span class="tool-icon">&#8630;</span>
@@ -166,6 +178,7 @@
         Redo
       </button>
     </div>
+
     <div class="toolbar-section image-mode-only hidden" data-section="scale">
       <div class="toolbar-label" role="button" tabindex="0" aria-expanded="true">
         <span class="toolbar-toggle" aria-hidden="true">▾</span>
@@ -174,6 +187,10 @@
       <button class="tool-btn" data-tool="scale" title="Set image scale by marking two points">
         <span class="tool-icon">&#128207;</span>
         Set Scale
+      </button>
+      <button class="tool-btn" data-tool="measure" title="Measure Distance (click two points)">
+        <span class="tool-icon">&#128207;</span>
+        Measure
       </button>
       <div id="scale-status" class="toolbar-hint">Not calibrated</div>
     </div>
@@ -261,10 +278,6 @@
           <span class="toolbar-toggle" aria-hidden="true">▾</span>
           <span class="toolbar-label-text">Layers</span>
         </div>
-        <button id="btn-add-image-layer" class="sidebar-add-btn" title="Load an image as a new layer">
-          <span>&#128444;</span> Add Image Layer
-        </button>
-        <input type="file" id="image-layer-file-input" accept="image/*" style="display:none">
         <div id="layers-list"></div>
       </div>
       <div class="toolbar-section" data-section="sidebar-notes">
