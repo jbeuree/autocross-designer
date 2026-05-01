@@ -71,6 +71,18 @@ const ImageMode = {
         console.log('Manifest loaded:', JSON.stringify(this._bundledImages));
         this._buildGallery(gallery, uploadInput, resolve, banner);
       });
+
+      // "Blank Canvas" button — generate a white 800×1280 image
+      document.getElementById('btn-mode-blank').addEventListener('click', () => {
+        const c = document.createElement('canvas');
+        c.width = 800;
+        c.height = 1280;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 800, 1280);
+        banner.classList.add('hidden');
+        resolve({ mode: 'image', imageSrc: c.toDataURL('image/png'), fileName: 'Blank Canvas' });
+      });
     });
   },
 
