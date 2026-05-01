@@ -44,17 +44,17 @@
     <div class="toolbar-section" data-section="place-cones">
       <div class="toolbar-label" role="button" tabindex="0" aria-expanded="true">
         <span class="toolbar-toggle" aria-hidden="true">▾</span>
-        <span class="toolbar-label-text">Place Cones</span>
+        <span class="toolbar-label-text">Cones</span>
       </div>
-      <button class="tool-btn" data-tool="regular" title="Regular Cone (orange)">
+      <button class="tool-btn" data-tool="regular" title="Regular (orange)">
         <span class="cone-icon cone-regular"></span>
         Regular
       </button>
-      <button class="tool-btn" data-tool="pointer" title="Pointer Cone (red)">
+      <button class="tool-btn" data-tool="pointer" title="Pointer (red)">
         <span class="cone-icon cone-pointer"></span>
         Pointer
       </button>
-      <button class="tool-btn" data-tool="leaner" title="Leaner Cone (directional orange cone)">
+      <button class="tool-btn" data-tool="leaner" title="Leaner (directional orange cone)">
         <span class="cone-icon cone-leaner"></span>
         Leaner
       </button>
@@ -80,10 +80,6 @@
         <input type="number" id="start-cone-width-input" min="1" max="100" step="1" value="20">
         <span class="toolbar-sublabel">ft</span>
       </div>
-      <button class="tool-btn" data-tool="start-beam" title="Start Beam (green)">
-        <span class="cone-icon cone-start"></span>
-        Start Beam
-      </button>
       <button class="tool-btn" data-tool="finish-cone" title="Finish Cone (checkered)">
         <span class="cone-icon cone-finish"></span>
         Finish Beam
@@ -92,7 +88,7 @@
     <div class="toolbar-section" data-section="place-elements">
       <div class="toolbar-label" role="button" tabindex="0" aria-expanded="true">
         <span class="toolbar-toggle" aria-hidden="true">▾</span>
-        <span class="toolbar-label-text">Place Elements</span>
+        <span class="toolbar-label-text">Elements</span>
       </div>
       <button class="tool-btn" data-tool="cleartext" title="Clear Text">
         <span class="element-icon">&#128462;</span>
@@ -105,6 +101,10 @@
       <button class="tool-btn" data-tool="staging-grid" title="Staging Grid">
         <span class="element-icon">&#9638;</span>
         Staging Grid
+      </button>
+      <button class="tool-btn" data-tool="start-beam" title="Start Beam (green)">
+        <span class="cone-icon cone-start"></span>
+        Start Beam
       </button>
       <button class="tool-btn" data-tool="worker" title="Worker Station">
         <span class="element-icon" style="color:#3b82f6">&#9679;</span>
@@ -209,7 +209,7 @@
     <div class="toolbar-section" data-section="course">
       <div class="toolbar-label" role="button" tabindex="0" aria-expanded="true">
         <span class="toolbar-toggle" aria-hidden="true">▾</span>
-        <span class="toolbar-label-text">Course</span>
+        <span class="toolbar-label-text">File</span>
       </div>
       <button class="tool-btn" id="btn-help" title="How to Use">
         <span class="tool-icon">&#63;</span>
@@ -390,7 +390,7 @@
         <p><b>Map Opacity</b> — fade the satellite imagery to see cones more clearly.</p>
         <p><b>Grid</b> — toggle a 10 ft grid overlay. Adjust rotation with the slider or number input. Toggle light/dark grid lines.</p>
 
-        <h4>Course</h4>
+        <h4>File</h4>
         <p><b>Export Image</b> — download the current view as a PNG image.</p>
         <p><b>Save / Load</b> — save or load courses as JSON files.</p>
 
