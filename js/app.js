@@ -38,6 +38,27 @@ const App = {
     // Check for shared course in URL
     const sharedCourse = Sharing.loadFromURL();
 
+    // If a pending background was set by the "Load Background" flow,
+    // honor it and initialize directly into the chosen mode.
+    const pendingBgRaw = sessionStorage.getItem('autocross-pending-background');
+    if (pendingBgRaw) {
+      try {
+        const pendingBg = JSON.parse(pendingBgRaw);
+        sessionStorage.removeItem('autocross-pending-background');
+        this.mode = pendingBg.mode || 'map';
+        if (this.mode === 'map') {
+          this._initMapMode();
+        } else {
+          this._initImageMode(pendingBg.imageSrc, pendingBg.fileName);
+        }
+        // Store shared course for loading after init and exit early.
+        this._sharedCourse = sharedCourse;
+        return;
+      } catch (e) {
+        sessionStorage.removeItem('autocross-pending-background');
+      }
+    }
+
     // Check for pending cross-mode import
     const pendingRaw = sessionStorage.getItem('autocross-pending-import');
     let autoMode = undefined;
@@ -1319,6 +1340,8 @@ const App = {
 
   /** Set up toolbar button clicks */
   _setupToolbar() {
+    if (this._toolbarBound) return;
+    this._toolbarBound = true;
     document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
       btn.addEventListener('click', () => {
         this._setActiveTool(btn.dataset.tool);
@@ -1359,6 +1382,36 @@ const App = {
       reader.readAsDataURL(file);
       imageLayerFileInput.value = '';
     });
+
+    // Load Background button (clears current course and prompts for new background)
+    const loadBgBtn = document.getElementById('btn-load-background');
+    if (loadBgBtn) {
+      loadBgBtn.addEventListener('click', async () => {
+        if (!confirm('Clear the current course and choose a new background?')) return;
+        History.push();
+        try {
+          if (typeof DrivingLine !== 'undefined' && DrivingLine.clear) DrivingLine.clear();
+          if (typeof DrivingLine2 !== 'undefined' && DrivingLine2.clear) DrivingLine2.clear();
+          if (typeof Cones !== 'undefined' && Cones.clearAll) Cones.clearAll();
+          if (typeof Obstacles !== 'undefined' && Obstacles.clearAll) Obstacles.clearAll();
+          if (typeof Notes !== 'undefined' && Notes.clearAll) Notes.clearAll();
+          if (typeof Measurements !== 'undefined' && Measurements.clearAll) Measurements.clearAll();
+          if (typeof Workers !== 'undefined' && Workers.clearAll) Workers.clearAll();
+          if (typeof Arrows !== 'undefined' && Arrows.clearAll) Arrows.clearAll();
+          if (typeof ImageLayers !== 'undefined' && ImageLayers.loadData) ImageLayers.loadData([]);
+        } catch (e) {}
+        if (typeof Selection !== 'undefined' && Selection.clear) Selection.clear();
+        if (typeof Layers !== 'undefined' && Layers.init) Layers.init();
+
+        const choice = await ImageMode.showBanner('image');
+        if (choice) {
+          try {
+            sessionStorage.setItem('autocross-pending-background', JSON.stringify(choice));
+          } catch (e) {}
+          location.reload();
+        }
+      });
+    }
 
   },
 
