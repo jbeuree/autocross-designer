@@ -553,11 +553,15 @@ const App = {
 
   /** Dynamically add a new optional driving line (Line 2, 3, …) */
   _addExtraDrivingLine() {
-    const idx = this._nextExtraLineIndex;
+    // Pick the smallest unused index >= 2 so deleted numbers get reused
+    const used = new Set(this._extraDrivingLines.map(l => l.index));
+    let idx = 2;
+    while (used.has(idx)) idx++;
     const color = this._extraLineColors[(idx - 2) % this._extraLineColors.length];
     const line = this._makeExtraDrivingLine(idx, color);
     this._extraDrivingLines.push(line);
-    this._nextExtraLineIndex++;
+    // Keep nextExtraLineIndex at least one past the highest seen (for compatibility)
+    this._nextExtraLineIndex = Math.max(this._nextExtraLineIndex || 2, idx + 1);
 
     // Init with current map — map is always ready by the time a user clicks the button
     line.init(this.map, { onUpdate: () => this._updateInfo() });
@@ -596,8 +600,72 @@ const App = {
       try { if (typeof ImageMap !== 'undefined' && ImageMap._redrawLineCanvas) ImageMap._redrawLineCanvas(); } catch (e) {}
     });
 
-    section.appendChild(drawBtn);
-    section.appendChild(clearBtn);
+    // Insert buttons under the main "Clear Main Driving Line" button (#btn-clear-line)
+    // Keep extras in ascending numeric order (lowest -> highest) immediately after that main clear button.
+    let insertBeforeEl = null;
+    const mainClearBtn = section.querySelector('#btn-clear-line');
+    if (mainClearBtn) {
+      // Walk siblings after the main clear button to find where to insert
+      let el = mainClearBtn.nextElementSibling;
+      let lastExtraEl = null;
+      while (el) {
+        // Determine if this element represents an extra driving line
+        let n = NaN;
+        const t = el.dataset && el.dataset.tool ? el.dataset.tool : '';
+        if (t && t.startsWith('drivingline')) {
+          n = parseInt(t.slice('drivingline'.length), 10);
+        } else if (el.id && el.id.startsWith('btn-clear-line')) {
+          // skip the main clear (no number) - extras have numbers
+          n = parseInt(el.id.slice('btn-clear-line'.length), 10);
+        }
+        if (!Number.isNaN(n)) {
+          lastExtraEl = el;
+          if (n > idx) { insertBeforeEl = el; break; }
+        }
+        el = el.nextElementSibling;
+      }
+
+      if (insertBeforeEl) {
+        section.insertBefore(drawBtn, insertBeforeEl);
+        section.insertBefore(clearBtn, insertBeforeEl);
+      } else if (lastExtraEl) {
+        // Insert after the last existing extra
+        const ref = lastExtraEl.nextElementSibling;
+        if (ref) {
+          section.insertBefore(drawBtn, ref);
+          section.insertBefore(clearBtn, ref);
+        } else {
+          section.appendChild(drawBtn);
+          section.appendChild(clearBtn);
+        }
+      } else {
+        // No extras yet: insert immediately after main clear button
+        const ref = mainClearBtn.nextElementSibling;
+        if (ref) {
+          section.insertBefore(drawBtn, ref);
+          section.insertBefore(clearBtn, ref);
+        } else {
+          section.appendChild(drawBtn);
+          section.appendChild(clearBtn);
+        }
+      }
+    } else {
+      // Fallback: no main clear button found — append in numeric order across the section
+      let found = false;
+      const buttons = Array.from(section.querySelectorAll('.tool-btn'));
+      for (const b of buttons) {
+        const t = b.dataset && b.dataset.tool ? b.dataset.tool : '';
+        if (t && t.startsWith('drivingline')) {
+          const n = parseInt(t.slice('drivingline'.length), 10);
+          if (!Number.isNaN(n) && n > idx) { section.insertBefore(drawBtn, b); section.insertBefore(clearBtn, b); found = true; break; }
+        }
+        if (b.id && b.id.startsWith('btn-clear-line')) {
+          const n = parseInt(b.id.slice('btn-clear-line'.length), 10);
+          if (!Number.isNaN(n) && n > idx) { section.insertBefore(drawBtn, b); section.insertBefore(clearBtn, b); found = true; break; }
+        }
+      }
+      if (!found) { section.appendChild(drawBtn); section.appendChild(clearBtn); }
+    }
 
     // Add to layers panel
     if (typeof Layers !== 'undefined' && Layers.addExtraDrivingLineLayer) {
