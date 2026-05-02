@@ -201,6 +201,11 @@ const Cones = {
       }
     }
 
+    // Add direction control to leaner cones
+    if (type === 'leaner') {
+      this._addLeanerRotateControl(cone, el);
+    }
+
     // Group drag: start tracking when drag begins on a multi-selected cone
     marker.on('dragstart', () => {
       if (typeof Selection !== 'undefined' && Selection.isSelected('cone', cone.id) && Selection.count() > 1) {
@@ -611,8 +616,12 @@ const Cones = {
   /** Apply stored rotation to a leaner cone's marker element */
   _applyLeanerRotation(cone) {
     if (cone.type !== 'leaner') return;
-    const inner = cone.marker.getElement().querySelector('.marker-leaner');
+    const el = cone.marker.getElement();
+    const inner = el.querySelector('.marker-leaner');
     if (inner) inner.style.transform = `rotate(${cone.rotation || 0}deg)`;
+    // Keep the direction control wrap in sync
+    const wrap = el.querySelector('.leaner-rotate-wrap');
+    if (wrap) wrap.style.transform = `rotate(${cone.rotation || 0}deg)`;
   },
 
   /** Update rotation for all leaner cone markers */
@@ -620,6 +629,65 @@ const Cones = {
     for (const c of this.cones) {
       if (c.type === 'leaner') this._applyLeanerRotation(c);
     }
+  },
+
+  /** Add a hover direction-line + drag handle to a leaner cone */
+  _addLeanerRotateControl(cone, el) {
+    const wrap = document.createElement('div');
+    wrap.className = 'leaner-rotate-wrap';
+    wrap.style.transform = `rotate(${cone.rotation || 0}deg)`;
+
+    const line = document.createElement('div');
+    line.className = 'leaner-direction-line';
+
+    const handle = document.createElement('div');
+    handle.className = 'leaner-direction-handle';
+    handle.title = 'Drag to set lean direction';
+
+    wrap.appendChild(line);
+    wrap.appendChild(handle);
+    el.appendChild(wrap);
+
+    let rotating = false;
+
+    const getApexClient = () => {
+      // cone.lngLat world coords -> container-relative px -> viewport px
+      const cs = this._map.project({ lng: cone.lngLat[0], lat: cone.lngLat[1] });
+      const containerRect = document.getElementById('map').getBoundingClientRect();
+      return { x: containerRect.left + cs.x, y: containerRect.top + cs.y };
+    };
+
+    const onMouseDown = (e) => {
+      if (e.button !== 0) return;
+      e.stopPropagation();
+      e.preventDefault();
+      rotating = true;
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    };
+
+    const onMouseMove = (e) => {
+      if (!rotating) return;
+      const apex = getApexClient();
+      const dx = e.clientX - apex.x;
+      const dy = e.clientY - apex.y;
+      // atan2(dx, -dy): 0deg = handle straight above = pointing through the leaner tip
+      let angle = Math.atan2(dx, -dy) * (180 / Math.PI);
+      if (e.shiftKey) angle = Math.round(angle / 15) * 15;
+      cone.rotation = angle;
+      this._applyLeanerRotation(cone);
+    };
+
+    const onMouseUp = () => {
+      if (!rotating) return;
+      rotating = false;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.addEventListener('click', (e) => e.stopPropagation(), { capture: true, once: true });
+      if (this._onUpdate) this._onUpdate();
+    };
+
+    handle.addEventListener('mousedown', onMouseDown);
   },
 
   /** Create the HTML element for a cone marker */

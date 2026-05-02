@@ -343,6 +343,7 @@ startfinish-btn {
 .cone-marker {
   cursor: crosshair;
   transform: scale(var(--marker-scale, 1));
+  position: relative;
 }
 
 .cone-marker.selected {
@@ -376,6 +377,59 @@ startfinish-btn {
   border-bottom: 14px solid #ff8c00;
   filter: drop-shadow(0 0 1px rgba(0,0,0,0.3));
   transform-origin: center center;
+}
+
+/* Leaner direction-line + handle shown on hover.
+   The wrap is placed at the leaner's rotation center (center of the 10×14px
+   border-box triangle = 5px right, 7px down from .cone-marker top-left).
+   transform-origin: 0 0 means it pivots around that same center point. */
+.leaner-rotate-wrap {
+  position: absolute;
+  width: 0;
+  height: 0;
+  /* center of .marker-leaner border-box: left-border(5) center, top-border(0)+bottom-border(14) center */
+  top: 7px;
+  left: 5px;
+  transform-origin: 0 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.cone-marker:hover .leaner-rotate-wrap,
+.cone-marker.selected .leaner-rotate-wrap {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Line from rotation center (wrap origin) upward through the tip and 14px past it.
+   Tip is 7px above rotation center; line extends 21px total. */
+.leaner-direction-line {
+  position: absolute;
+  width: 1.5px;
+  height: 21px;
+  background: rgba(96, 165, 250, 0.75);
+  top: -21px;
+  left: -0.75px;
+  pointer-events: none;
+}
+
+/* Draggable handle at the far end of the line (14px past the triangle tip) */
+.leaner-direction-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(96, 165, 250, 0.9);
+  border: 1.5px solid #3b82f6;
+  top: -26px;
+  left: -5px;
+  cursor: grab;
+  pointer-events: auto;
+}
+
+.leaner-direction-handle:active {
+  cursor: grabbing;
 }
 
 .marker-start {
