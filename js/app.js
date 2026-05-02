@@ -11,6 +11,7 @@ const App = {
   map: null,
   mode: 'map',           // 'map' or 'image'
   imageFileName: null,    // name of loaded image file (image mode only)
+  courseTitle: 'Autocross', // editable course title / default filename
   _solidDrivingLine: true,
   _scalePoints: [],       // temp array for scale calibration clicks [{x,y}]
   _scaleMarkers: [],      // temp DOM elements for scale point display
@@ -278,6 +279,9 @@ const App = {
 
     // Wire up course options
     this._setupOptions();
+
+    // Title UI (editable course name)
+    this._setupTitleUI();
 
     // Wire up grid controls
     this._setupGrid();
@@ -2015,7 +2019,8 @@ const App = {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'autocross-course.png';
+      const base = this._sanitizeFileName(this.courseTitle || 'Autocross');
+      a.download = base + '.png';
       a.click();
       URL.revokeObjectURL(url);
     }, 'image/png');
@@ -2123,10 +2128,19 @@ const App = {
 
   /** Set up export/import buttons */
   _setupStorage() {
-    // Export
+    // Export / Save
     document.getElementById('btn-export').addEventListener('click', () => {
       const data = this._serializeFull();
-      Storage.exportJSON(data, 'autocross-course.json');
+      const base = this._sanitizeFileName(this.courseTitle || 'Autocross');
+      // Save to localStorage under the base name
+      try {
+        Storage.save(base, data);
+        this._refreshSavedList();
+        this._showToast(`Saved "${base}"`, 'info');
+      } catch (e) {}
+      // Also export as JSON file with .json extension
+      const filename = base + '.json';
+      Storage.exportJSON(data, filename);
     });
 
     // Import
@@ -2169,7 +2183,8 @@ const App = {
       this.map.getZoom(),
       this.mode === 'image',
       this.imageFileName,
-      this._solidDrivingLine
+      this._solidDrivingLine,
+      this.courseTitle
     );
     data.obstacles = Obstacles.getData();
     data.workers = Workers.getData();
@@ -2243,6 +2258,12 @@ const App = {
     // Restore image scale if present
     if (data.imageScale && this.mode === 'image') {
       this._setImageScale(data.imageScale, 'Calibrated (imported)');
+    }
+    // Restore optional saved course title
+    if (data.title) {
+      this.courseTitle = data.title;
+      const titleEl = document.getElementById('course-title');
+      if (titleEl) titleEl.textContent = data.title;
     }
     this._applyDrivingLineStyle();
     this._updateInfo();
@@ -2418,6 +2439,97 @@ const App = {
       }
     });
   },
+
+  /** Set up editable course title UI */
+  _setupTitleUI() {
+    const el = document.getElementById('course-title');
+    if (!el) return;
+    el.textContent = this.courseTitle || 'Autocross';
+    el.contentEditable = 'true';
+    el.spellcheck = false;
+
+    // Prevent clicks from affecting toolbar
+    el.addEventListener('mousedown', (e) => e.stopPropagation());
+    el.addEventListener('click', (e) => e.stopPropagation());
+
+    const original = { value: el.textContent };
+
+    el.addEventListener('focus', () => {
+      original.value = el.textContent;
+    });
+
+    // Block disallowed characters at keydown so the DOM is never rewritten
+    // mid-edit (which would reset the caret). Also intercept Space so the
+    // browser inserts a real space (U+0020) instead of NBSP (U+00A0).
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); el.blur(); return; }
+      if (e.key === 'Escape') { el.textContent = original.value; el.blur(); return; }
+
+      // Let control combos (Ctrl+A, Ctrl+C, etc.) and non-printable keys through.
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key.length !== 1) return;
+
+      // Space: prevent NBSP insertion, manually insert a real space.
+      if (e.key === ' ') {
+        e.preventDefault();
+        document.execCommand('insertText', false, ' ');
+        return;
+      }
+
+      // Block anything outside the allowed set.
+      if (!/^[A-Za-z0-9_-]$/.test(e.key)) {
+        e.preventDefault();
+      }
+    });
+
+    // Handle pasted text: strip disallowed characters, insert as plain text.
+    el.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+      const cleaned = text.replace(/[^A-Za-z0-9 _-]+/g, '');
+      if (cleaned) document.execCommand('insertText', false, cleaned);
+    });
+
+    el.addEventListener('blur', () => {
+      let newTitle = this._cleanTitle(el.textContent || '');
+      newTitle = newTitle || 'Autocross';
+      el.textContent = newTitle;
+      this.courseTitle = newTitle;
+      // Update saved list display if appropriate
+      this._refreshSavedList();
+    });
+
+    // Positioning
+    this._repositionCourseTitle();
+    window.addEventListener('resize', () => this._repositionCourseTitle());
+    const toolbar = document.getElementById('toolbar');
+    if (toolbar && window.MutationObserver) {
+      new MutationObserver(() => this._repositionCourseTitle()).observe(toolbar, { attributes: true, attributeFilter: ['class'] });
+    }
+  },
+
+  _repositionCourseTitle() {
+    const el = document.getElementById('course-title');
+    const toolbar = document.getElementById('toolbar');
+    if (!el || !toolbar) return;
+    const rect = toolbar.getBoundingClientRect();
+    const left = Math.max(rect.right + 12, 12);
+    el.style.left = left + 'px';
+    el.style.top = (rect.top + 8) + 'px';
+  },
+
+  _sanitizeFileName(name) {
+    if (!name) return 'autocross-course';
+    return name.replace(/[\\/:*?"<>|]+/g, '_').trim() || 'autocross-course';
+  },
+
+  /** Clean a title string to only allow A-Z a-z 0-9, space, underscore, and dash */
+_cleanTitle(name, applyTrim = true) {
+    if (!name) return '';
+    const normalized = String(name).replace(/\u00A0/g, ' ');
+    const filtered = normalized.replace(/[^A-Za-z0-9 _-]+/g, '');
+    return applyTrim ? filtered.trim() : filtered;
+},
 
   // ===== Obstacle Type Selector =====
 

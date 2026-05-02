@@ -37,7 +37,7 @@ const Storage = {
   },
 
   /** Serialize current state to a plain object for saving */
-  serialize(cones, drivingLine, measurements, notes, mapCenter, mapZoom, imageMode, imageFileName, solidDrivingLine) {
+  serialize(cones, drivingLine, measurements, notes, mapCenter, mapZoom, imageMode, imageFileName, solidDrivingLine, courseTitle) {
     const data = {
       cones: cones.map(c => {
         const d = { id: c.id, type: c.type, lngLat: c.lngLat, lockedTargetId: c.lockedTargetId || null };
@@ -61,6 +61,8 @@ const Storage = {
         data.imageScale = ImageMap.getScale();
       }
     }
+    // Optional course title
+    if (courseTitle) data.title = courseTitle;
     return data;
   },
 

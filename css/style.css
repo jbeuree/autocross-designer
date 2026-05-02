@@ -1333,6 +1333,31 @@ startfinish-btn {
   box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.5);
 }
 
+/* Course title (editable) */
+#course-title {
+  position: absolute;
+  top: 12px;
+  left: 130px;
+  z-index: 11;
+  color: #fff;
+  background: rgba(0,0,0,0.4);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: text;
+  min-width: 80px;
+  max-width: 60%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#course-title:focus {
+  outline: none;
+  background: rgba(59,130,246,0.18);
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.18);
+}
+
 /* ===== Add Image Layer Button (sidebar) ===== */
 .sidebar-add-btn {
   display: flex;

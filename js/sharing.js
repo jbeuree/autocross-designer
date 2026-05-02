@@ -12,7 +12,9 @@ const Sharing = {
       center.toArray ? center.toArray() : [center.lng, center.lat],
       App.map.getZoom(),
       App.mode === 'image',
-      App.imageFileName
+      App.imageFileName,
+      App._solidDrivingLine,
+      App.courseTitle
     );
 
     data.obstacles = typeof Obstacles !== 'undefined' ? Obstacles.getData() : [];
