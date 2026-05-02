@@ -600,22 +600,19 @@ const App = {
       try { if (typeof ImageMap !== 'undefined' && ImageMap._redrawLineCanvas) ImageMap._redrawLineCanvas(); } catch (e) {}
     });
 
-    // Insert buttons under the main "Clear Main Driving Line" button (#btn-clear-line)
-    // Keep extras in ascending numeric order (lowest -> highest) immediately after that main clear button.
-    let insertBeforeEl = null;
-    const mainClearBtn = section.querySelector('#btn-clear-line');
-    if (mainClearBtn) {
-      // Walk siblings after the main clear button to find where to insert
-      let el = mainClearBtn.nextElementSibling;
+    // Insert buttons under the "Add optional line" button (#btn-add-optional-line)
+    // Keep extras in ascending numeric order (lowest -> highest) immediately after that add button.
+    const addBtn = section.querySelector('#btn-add-optional-line');
+    if (addBtn) {
+      let insertBeforeEl = null;
       let lastExtraEl = null;
+      let el = addBtn.nextElementSibling;
       while (el) {
-        // Determine if this element represents an extra driving line
         let n = NaN;
         const t = el.dataset && el.dataset.tool ? el.dataset.tool : '';
         if (t && t.startsWith('drivingline')) {
           n = parseInt(t.slice('drivingline'.length), 10);
         } else if (el.id && el.id.startsWith('btn-clear-line')) {
-          // skip the main clear (no number) - extras have numbers
           n = parseInt(el.id.slice('btn-clear-line'.length), 10);
         }
         if (!Number.isNaN(n)) {
@@ -629,28 +626,16 @@ const App = {
         section.insertBefore(drawBtn, insertBeforeEl);
         section.insertBefore(clearBtn, insertBeforeEl);
       } else if (lastExtraEl) {
-        // Insert after the last existing extra
         const ref = lastExtraEl.nextElementSibling;
-        if (ref) {
-          section.insertBefore(drawBtn, ref);
-          section.insertBefore(clearBtn, ref);
-        } else {
-          section.appendChild(drawBtn);
-          section.appendChild(clearBtn);
-        }
+        if (ref) { section.insertBefore(drawBtn, ref); section.insertBefore(clearBtn, ref); }
+        else { section.appendChild(drawBtn); section.appendChild(clearBtn); }
       } else {
-        // No extras yet: insert immediately after main clear button
-        const ref = mainClearBtn.nextElementSibling;
-        if (ref) {
-          section.insertBefore(drawBtn, ref);
-          section.insertBefore(clearBtn, ref);
-        } else {
-          section.appendChild(drawBtn);
-          section.appendChild(clearBtn);
-        }
+        const ref = addBtn.nextElementSibling;
+        if (ref) { section.insertBefore(drawBtn, ref); section.insertBefore(clearBtn, ref); }
+        else { section.appendChild(drawBtn); section.appendChild(clearBtn); }
       }
     } else {
-      // Fallback: no main clear button found — append in numeric order across the section
+      // Fallback: add button not found — append in numeric order across the section
       let found = false;
       const buttons = Array.from(section.querySelectorAll('.tool-btn'));
       for (const b of buttons) {
