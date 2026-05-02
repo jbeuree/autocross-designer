@@ -1318,6 +1318,21 @@ startfinish-btn {
   height: 14px;
 }
 
+.layer-label-editable {
+  cursor: text;
+  border-radius: 3px;
+  padding: 1px 3px;
+  outline: none;
+  min-width: 20px;
+}
+.layer-label-editable:hover {
+  background: rgba(255,255,255,0.08);
+}
+.layer-label-editable:focus {
+  background: rgba(59, 130, 246, 0.2);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.5);
+}
+
 /* ===== Add Image Layer Button (sidebar) ===== */
 .sidebar-add-btn {
   display: flex;

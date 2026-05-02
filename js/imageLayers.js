@@ -180,6 +180,13 @@ const ImageLayers = {
     }
   },
 
+  /** Rename a layer by id */
+  renameLayer(id, label) {
+    const layer = this._layers.find(l => l.id === id);
+    if (!layer) return;
+    layer.label = label;
+  },
+
   /** Set up drag-to-move on the overlay element */
   _setupDrag(el, layer) {
     let dragging = false;

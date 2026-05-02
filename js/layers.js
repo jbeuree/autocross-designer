@@ -42,6 +42,25 @@ const Layers = {
       const span = document.createElement('span');
       span.textContent = layer.label;
 
+      if (key.startsWith('imageLayer_')) {
+        span.contentEditable = 'true';
+        span.spellcheck = false;
+        span.className = 'layer-label-editable';
+        span.title = 'Click to rename';
+        span.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); span.blur(); }
+          if (e.key === 'Escape') { span.textContent = layer.label; span.blur(); }
+        });
+        span.addEventListener('blur', () => {
+          const newLabel = span.textContent.trim() || layer.label;
+          span.textContent = newLabel;
+          this.renameImageLayer(key, newLabel);
+        });
+        // Prevent label click from toggling the checkbox when editing the name
+        span.addEventListener('mousedown', (e) => e.stopPropagation());
+        span.addEventListener('click', (e) => e.preventDefault());
+      }
+
       row.appendChild(cb);
       row.appendChild(span);
       container.appendChild(row);
@@ -164,5 +183,15 @@ const Layers = {
   removeImageLayer(id) {
     delete this._layers[`imageLayer_${id}`];
     this._renderPanel();
+  },
+
+  /** Rename a dynamic image layer entry */
+  renameImageLayer(key, newLabel) {
+    if (!this._layers[key]) return;
+    this._layers[key].label = newLabel;
+    const id = parseInt(key.slice('imageLayer_'.length), 10);
+    if (typeof ImageLayers !== 'undefined') {
+      ImageLayers.renameLayer(id, newLabel);
+    }
   },
 };
