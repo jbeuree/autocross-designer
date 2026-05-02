@@ -1055,10 +1055,14 @@ const App = {
     // Make the start-beam connecting line interactive so dragging it moves both pylons
     try {
       const svg = this._startBeamLineElement;
-      svg.style.pointerEvents = 'auto';
-      svg.style.cursor = 'move';
+      // Let clicks pass through the SVG except on the actual line element.
+      svg.style.pointerEvents = 'none';
+      svg.style.cursor = 'default';
       const lineEl = svg.querySelector('line');
-      if (lineEl) lineEl.style.cursor = 'move';
+      if (lineEl) {
+        lineEl.style.cursor = 'move';
+        lineEl.style.pointerEvents = 'auto';
+      }
 
       // Clean up any previous handlers
       if (svg._startBeamDragCleanup) {
@@ -1126,6 +1130,16 @@ const App = {
         document.removeEventListener('mouseup', onMouseUp);
         // finalize
         if (this._onUpdate) this._onUpdate();
+        // Ensure the start-beam SVG is rebuilt and its overlay restored (like finish-beam)
+        try { this._redrawStartBeamConnectingLine(); } catch (ex) {}
+        try {
+          const redrawnSvg = this._startBeamLineElement;
+          if (redrawnSvg && redrawnSvg._scheduleDirHide) redrawnSvg._scheduleDirHide();
+        } catch (ex) {}
+        // Suppress the synthetic click after drag so a new start-beam isn't created.
+        this._suppressNextClick = true;
+        try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = true; } catch (ex) {}
+        setTimeout(() => { this._suppressNextClick = false; try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = false; } catch (ex) {} }, 300);
       };
 
       const onTouchMove = (e) => { if (!e.touches || e.touches.length === 0) return; e.preventDefault(); onMove(e.touches[0].clientX, e.touches[0].clientY); };
@@ -1133,6 +1147,11 @@ const App = {
         document.removeEventListener('touchmove', onTouchMove);
         document.removeEventListener('touchend', onTouchEnd);
         if (this._onUpdate) this._onUpdate();
+        try { this._redrawStartBeamConnectingLine(); } catch (ex) {}
+        try { const redrawnSvg = this._startBeamLineElement; if (redrawnSvg && redrawnSvg._scheduleDirHide) redrawnSvg._scheduleDirHide(); } catch (ex) {}
+        this._suppressNextClick = true;
+        try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = true; } catch (ex) {}
+        setTimeout(() => { this._suppressNextClick = false; try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = false; } catch (ex) {} }, 300);
       };
 
       const startDrag = (e) => {
@@ -1166,8 +1185,10 @@ const App = {
         }
       };
 
-      svg.addEventListener('mousedown', startDrag);
-      svg.addEventListener('touchstart', startDrag, { passive: false });
+      if (lineEl) {
+        lineEl.addEventListener('mousedown', startDrag);
+        lineEl.addEventListener('touchstart', startDrag, { passive: false });
+      }
 
       // Direction overlay (hidden until hover) and rotation handle for picking direction
       try {
@@ -1378,8 +1399,8 @@ const App = {
 
       // Provide a cleanup function in case the SVG is removed/replaced
       svg._startBeamDragCleanup = () => {
-        try { svg.removeEventListener('mousedown', startDrag); } catch (e) {}
-        try { svg.removeEventListener('touchstart', startDrag); } catch (e) {}
+        try { if (lineEl) lineEl.removeEventListener('mousedown', startDrag); } catch (e) {}
+        try { if (lineEl) lineEl.removeEventListener('touchstart', startDrag); } catch (e) {}
         try { document.removeEventListener('mousemove', onMouseMove); } catch (e) {}
         try { document.removeEventListener('mouseup', onMouseUp); } catch (e) {}
         try { document.removeEventListener('touchmove', onTouchMove); } catch (e) {}
@@ -1420,16 +1441,386 @@ const App = {
 
   /** Draw a blue line connecting two finish cones by their lngLat positions */
   _drawFinishConeConnectingLine(cone1LngLat, cone2LngLat) {
-    // Remove existing line
+    // Remove existing line (ensure any drag handlers are cleaned up)
     if (this._finishConeLineElement) {
+      try { if (this._finishConeLineElement._finishConeDragCleanup) this._finishConeLineElement._finishConeDragCleanup(); } catch (e) {}
       this._finishConeLineElement.remove();
+      this._finishConeLineElement = null;
     }
 
     this._finishConeLineElement = this._createLineSVG(
       Array.isArray(cone1LngLat) ? cone1LngLat : [cone1LngLat.lng, cone1LngLat.lat],
       Array.isArray(cone2LngLat) ? cone2LngLat : [cone2LngLat.lng, cone2LngLat.lat],
-      '#000000'
+      finishLineColor
     );
+
+    // Make the finish-cone connecting line interactive so dragging it moves both cones
+    try {
+      const svg = this._finishConeLineElement;
+      // Let clicks pass through the SVG except on the actual line element.
+      svg.style.pointerEvents = 'none';
+      svg.style.cursor = 'default';
+      const lineEl = svg.querySelector('line');
+      if (lineEl) {
+        lineEl.style.cursor = 'move';
+        lineEl.style.pointerEvents = 'auto';
+      }
+
+      // Clean up any previous handlers
+      if (svg._finishConeDragCleanup) {
+        svg._finishConeDragCleanup();
+        svg._finishConeDragCleanup = null;
+      }
+
+      const mapAdapter = (this.mode === 'image') ? ImageMap : this.map;
+
+      let startX = 0, startY = 0;
+      let p1Screen = null, p2Screen = null;
+      let p1Cone = null, p2Cone = null;
+
+      const onMove = (clientX, clientY) => {
+        if (!p1Screen || !p2Screen) return;
+        const dx = clientX - startX;
+        const dy = clientY - startY;
+
+        const newP1 = { x: p1Screen.x + dx, y: p1Screen.y + dy };
+        const newP2 = { x: p2Screen.x + dx, y: p2Screen.y + dy };
+
+        // Convert back to lng/lat (or image pixel coords)
+        const lngLat1 = mapAdapter.unproject ? mapAdapter.unproject(newP1) : this.map.unproject(newP1);
+        const lngLat2 = mapAdapter.unproject ? mapAdapter.unproject(newP2) : this.map.unproject(newP2);
+
+        // Update cone markers and internal positions
+        try {
+          if (p1Cone && p1Cone.marker && typeof p1Cone.marker.setLngLat === 'function') {
+            p1Cone.marker.setLngLat(lngLat1);
+            p1Cone.lngLat = [lngLat1.lng, lngLat1.lat];
+          }
+          if (p2Cone && p2Cone.marker && typeof p2Cone.marker.setLngLat === 'function') {
+            p2Cone.marker.setLngLat(lngLat2);
+            p2Cone.lngLat = [lngLat2.lng, lngLat2.lat];
+          }
+        } catch (e) {}
+
+        // Update the SVG line positions (use projected screen coords)
+        const proj1 = mapAdapter.project ? mapAdapter.project(p1Cone.lngLat) : this.map.project(p1Cone.lngLat);
+        const proj2 = mapAdapter.project ? mapAdapter.project(p2Cone.lngLat) : this.map.project(p2Cone.lngLat);
+        try {
+          const ln = svg.querySelector('line');
+          if (ln) {
+            ln.setAttribute('x1', proj1.x);
+            ln.setAttribute('y1', proj1.y);
+            ln.setAttribute('x2', proj2.x);
+            ln.setAttribute('y2', proj2.y);
+          }
+        } catch (e) {}
+
+        // Keep direction overlay in sync while dragging the whole line
+        try { if (svg._updateDirGraphics) svg._updateDirGraphics(); } catch (e) {}
+
+        // Update rotations and any dependent visuals
+        this._updateFinishConePairRotation();
+        if (typeof Measurements !== 'undefined') {
+          Measurements.updateConePosition(p1Cone.id, p1Cone.lngLat);
+          Measurements.updateConePosition(p2Cone.id, p2Cone.lngLat);
+        }
+      };
+
+      const onMouseMove = (e) => { e.preventDefault(); onMove(e.clientX, e.clientY); };
+      const onMouseUp = (e) => {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        // finalize
+        if (this._onUpdate) this._onUpdate();
+        // Rebuild the finish line SVG from the dragged cone positions so the line reliably returns
+        try { this._redrawFinishConeConnectingLine(); } catch (ex) {}
+        try {
+          const redrawnSvg = this._finishConeLineElement;
+          if (redrawnSvg && redrawnSvg._scheduleDirHide) redrawnSvg._scheduleDirHide();
+        } catch (ex) {}
+        // Suppress the synthetic click after drag so a new finish-beam isn't created.
+        this._suppressNextClick = true;
+        try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = true; } catch (ex) {}
+        setTimeout(() => { this._suppressNextClick = false; try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = false; } catch (ex) {} }, 300);
+      };
+
+      const onTouchMove = (e) => { if (!e.touches || e.touches.length === 0) return; e.preventDefault(); onMove(e.touches[0].clientX, e.touches[0].clientY); };
+      const onTouchEnd = (e) => {
+        document.removeEventListener('touchmove', onTouchMove);
+        document.removeEventListener('touchend', onTouchEnd);
+        if (this._onUpdate) this._onUpdate();
+        try { this._redrawFinishConeConnectingLine(); } catch (ex) {}
+        try { const redrawnSvg = this._finishConeLineElement; if (redrawnSvg && redrawnSvg._scheduleDirHide) redrawnSvg._scheduleDirHide(); } catch (ex) {}
+        this._suppressNextClick = true;
+        try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = true; } catch (ex) {}
+        setTimeout(() => { this._suppressNextClick = false; try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = false; } catch (ex) {} }, 300);
+      };
+
+      const startDrag = (e) => {
+        // Only start on left mouse or single touch
+        if (e.type === 'mousedown' && e.button !== 0) return;
+        e.stopPropagation();
+        e.preventDefault();
+
+        // Identify cones
+        if (!this._currentFinishConePair || this._currentFinishConePair.length !== 2) return;
+        p1Cone = Cones.cones.find(c => c.id === this._currentFinishConePair[0]);
+        p2Cone = Cones.cones.find(c => c.id === this._currentFinishConePair[1]);
+        if (!p1Cone || !p2Cone) return;
+
+        // Record starting positions in screen coords
+        p1Screen = (mapAdapter.project) ? mapAdapter.project(p1Cone.lngLat) : this.map.project(p1Cone.lngLat);
+        p2Screen = (mapAdapter.project) ? mapAdapter.project(p2Cone.lngLat) : this.map.project(p2Cone.lngLat);
+
+        if (e.type === 'mousedown') {
+          startX = e.clientX; startY = e.clientY;
+          // push history snapshot for undo
+          try { History.push(); } catch (ex) {}
+          document.addEventListener('mousemove', onMouseMove);
+          document.addEventListener('mouseup', onMouseUp);
+        } else if (e.type === 'touchstart') {
+          if (!e.touches || e.touches.length === 0) return;
+          startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+          try { History.push(); } catch (ex) {}
+          document.addEventListener('touchmove', onTouchMove, { passive: false });
+          document.addEventListener('touchend', onTouchEnd);
+        }
+      };
+
+      if (lineEl) {
+        lineEl.addEventListener('mousedown', startDrag);
+        lineEl.addEventListener('touchstart', startDrag, { passive: false });
+      }
+
+      // Direction overlay (hidden until hover) and rotation handle for picking direction
+      try {
+        let draggingHandle = false;
+        const dirGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        dirGroup.style.display = 'none';
+        dirGroup.style.pointerEvents = 'none';
+
+        const dirLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        dirLine.setAttribute('stroke', '#10b981');
+        dirLine.setAttribute('stroke-width', '2');
+        dirLine.setAttribute('stroke-dasharray', '6,4');
+        dirLine.setAttribute('pointer-events', 'none');
+
+        const dirHandle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        dirHandle.setAttribute('r', '7');
+        dirHandle.setAttribute('fill', '#ffffff');
+        dirHandle.setAttribute('stroke', '#10b981');
+        dirHandle.setAttribute('stroke-width', '2');
+        dirHandle.style.cursor = 'grab';
+        dirHandle.style.pointerEvents = 'auto';
+
+        dirGroup.appendChild(dirLine);
+        dirGroup.appendChild(dirHandle);
+        svg.appendChild(dirGroup);
+
+        const updateDirectionGraphics = () => {
+          try {
+            const ln = svg.querySelector('line');
+            if (!ln) return;
+            const x1 = parseFloat(ln.getAttribute('x1')) || 0;
+            const y1 = parseFloat(ln.getAttribute('y1')) || 0;
+            const x2 = parseFloat(ln.getAttribute('x2')) || 0;
+            const y2 = parseFloat(ln.getAttribute('y2')) || 0;
+            const cx = (x1 + x2) / 2;
+            const cy = (y1 + y2) / 2;
+            const halfX = x1 - cx;
+            const halfY = y1 - cy;
+            const mag = Math.sqrt(halfX * halfX + halfY * halfY) || 20;
+            const pvAngle = Math.atan2(halfY, halfX);
+            const drivingAngle = pvAngle - Math.PI / 2;
+            const len = Math.max(40, mag * 1.5);
+            const hx = cx + Math.cos(drivingAngle) * len;
+            const hy = cy + Math.sin(drivingAngle) * len;
+            dirLine.setAttribute('x1', cx);
+            dirLine.setAttribute('y1', cy);
+            dirLine.setAttribute('x2', hx);
+            dirLine.setAttribute('y2', hy);
+            dirHandle.setAttribute('cx', hx);
+            dirHandle.setAttribute('cy', hy);
+          } catch (e) {}
+        };
+
+        // Expose so onMove (line-drag) can keep the overlay in sync
+        svg._updateDirGraphics = updateDirectionGraphics;
+
+        const HIDE_DELAY = 2000;
+        let dirHideTimer = null;
+        const cancelHide = () => { if (dirHideTimer) { clearTimeout(dirHideTimer); dirHideTimer = null; } };
+        const hideNow = () => { dirGroup.style.display = 'none'; dirGroup.style.pointerEvents = 'none'; svg._dirOverlayVisible = false; };
+        const scheduleHide = (delay = HIDE_DELAY) => {
+          cancelHide();
+          if (!draggingHandle) {
+            dirHideTimer = setTimeout(() => { dirHideTimer = null; if (!draggingHandle) hideNow(); }, delay);
+          }
+        };
+        const showDirection = () => { dirGroup.style.display = 'block'; dirGroup.style.pointerEvents = 'auto'; updateDirectionGraphics(); cancelHide(); svg._dirOverlayVisible = true; };
+        // Expose so _redrawFinishConeConnectingLine can restore visibility after SVG recreation
+        svg._showDirOverlay = showDirection;
+        svg._scheduleDirHide = scheduleHide;
+        svg._dirOverlayVisible = false;
+        const hideDirection = () => { scheduleHide(); };
+
+        const mainLineElForDir = svg.querySelector('line');
+        if (mainLineElForDir) {
+          mainLineElForDir.addEventListener('mouseenter', (e) => { showDirection(); });
+          mainLineElForDir.addEventListener('mousemove', (e) => { showDirection(); scheduleHide(); });
+          mainLineElForDir.addEventListener('mouseleave', (e) => { scheduleHide(); });
+        }
+
+        // Keep the handle from disappearing while hovered or dragged
+        dirHandle.addEventListener('mouseenter', (e) => { cancelHide(); showDirection(); });
+        dirHandle.addEventListener('mouseleave', (e) => { scheduleHide(); });
+
+        // Rotation handle drag
+        let dirStartCenter = null;
+        let dirHalfMag = 0;
+        let dirP1Cone = null, dirP2Cone = null;
+
+        const onHandleMove = (clientX, clientY) => {
+          if (!dirStartCenter || !dirP1Cone || !dirP2Cone) return;
+          const dx = clientX - dirStartCenter.x;
+          const dy = clientY - dirStartCenter.y;
+          const pointerAngle = Math.atan2(dy, dx);
+          const newHalfAngle = pointerAngle + Math.PI / 2;
+          const newHalfX = Math.cos(newHalfAngle) * dirHalfMag;
+          const newHalfY = Math.sin(newHalfAngle) * dirHalfMag;
+          const newP1 = { x: dirStartCenter.x + newHalfX, y: dirStartCenter.y + newHalfY };
+          const newP2 = { x: dirStartCenter.x - newHalfX, y: dirStartCenter.y - newHalfY };
+
+          // Convert screen coords back to lng/lat (or image pixel coords)
+          const lngLat1 = mapAdapter.unproject ? mapAdapter.unproject(newP1) : this.map.unproject(newP1);
+          const lngLat2 = mapAdapter.unproject ? mapAdapter.unproject(newP2) : this.map.unproject(newP2);
+
+          try {
+            if (dirP1Cone && dirP1Cone.marker && typeof dirP1Cone.marker.setLngLat === 'function') {
+              dirP1Cone.marker.setLngLat(lngLat1);
+              dirP1Cone.lngLat = [lngLat1.lng, lngLat1.lat];
+            }
+            if (dirP2Cone && dirP2Cone.marker && typeof dirP2Cone.marker.setLngLat === 'function') {
+              dirP2Cone.marker.setLngLat(lngLat2);
+              dirP2Cone.lngLat = [lngLat2.lng, lngLat2.lat];
+            }
+          } catch (e) {}
+
+          // Update main line coordinates (projected)
+          try {
+            const proj1 = mapAdapter.project ? mapAdapter.project(dirP1Cone.lngLat) : this.map.project(dirP1Cone.lngLat);
+            const proj2 = mapAdapter.project ? mapAdapter.project(dirP2Cone.lngLat) : this.map.project(dirP2Cone.lngLat);
+            const lnMain = svg.querySelector('line');
+            if (lnMain) {
+              lnMain.setAttribute('x1', proj1.x);
+              lnMain.setAttribute('y1', proj1.y);
+              lnMain.setAttribute('x2', proj2.x);
+              lnMain.setAttribute('y2', proj2.y);
+            }
+          } catch (e) {}
+
+          updateDirectionGraphics();
+          this._updateFinishConePairRotation();
+          if (typeof Measurements !== 'undefined') {
+            Measurements.updateConePosition(dirP1Cone.id, dirP1Cone.lngLat);
+            Measurements.updateConePosition(dirP2Cone.id, dirP2Cone.lngLat);
+          }
+        };
+
+        const onHandleMouseMove = (e) => { e.preventDefault(); onHandleMove(e.clientX, e.clientY); };
+        const onHandleMouseUp = (e) => {
+          draggingHandle = false;
+          document.removeEventListener('mousemove', onHandleMouseMove);
+          document.removeEventListener('mouseup', onHandleMouseUp);
+          // Rebuild the finish line SVG from the rotated cone positions so the line reliably returns
+          try { this._redrawFinishConeConnectingLine(); } catch (e) {}
+          try {
+            const redrawnSvg = this._finishConeLineElement;
+            if (redrawnSvg && redrawnSvg._scheduleDirHide) redrawnSvg._scheduleDirHide();
+          } catch (e) {}
+          try { if (this._updateInfo) this._updateInfo(); } catch (e) {}
+          this._suppressNextClick = true;
+          try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = true; } catch (ex) {}
+          setTimeout(() => { this._suppressNextClick = false; try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = false; } catch (ex) {} }, 300);
+        };
+        const onHandleTouchMove = (e) => { if (!e.touches || e.touches.length === 0) return; e.preventDefault(); onHandleMove(e.touches[0].clientX, e.touches[0].clientY); };
+        const onHandleTouchEnd = (e) => {
+          draggingHandle = false;
+          document.removeEventListener('touchmove', onHandleTouchMove);
+          document.removeEventListener('touchend', onHandleTouchEnd);
+          try { this._redrawFinishConeConnectingLine(); } catch (ex) {}
+          try { const redrawnSvg = this._finishConeLineElement; if (redrawnSvg && redrawnSvg._scheduleDirHide) redrawnSvg._scheduleDirHide(); } catch (ex) {}
+          try { if (this._updateInfo) this._updateInfo(); } catch (ex) {}
+          this._suppressNextClick = true;
+          try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = true; } catch (ex) {}
+          setTimeout(() => { this._suppressNextClick = false; try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = false; } catch (ex) {} }, 300);
+        };
+
+        const startHandleDrag = (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          // Identify cones and compute center + half magnitude
+          if (!this._currentFinishConePair || this._currentFinishConePair.length !== 2) return;
+          dirP1Cone = Cones.cones.find(c => c.id === this._currentFinishConePair[0]);
+          dirP2Cone = Cones.cones.find(c => c.id === this._currentFinishConePair[1]);
+          if (!dirP1Cone || !dirP2Cone) return;
+
+          const proj1 = mapAdapter.project ? mapAdapter.project(dirP1Cone.lngLat) : this.map.project(dirP1Cone.lngLat);
+          const proj2 = mapAdapter.project ? mapAdapter.project(dirP2Cone.lngLat) : this.map.project(dirP2Cone.lngLat);
+          dirStartCenter = { x: (proj1.x + proj2.x) / 2, y: (proj1.y + proj2.y) / 2 };
+          const halfX = proj1.x - dirStartCenter.x;
+          const halfY = proj1.y - dirStartCenter.y;
+          dirHalfMag = Math.sqrt(halfX * halfX + halfY * halfY) || 20;
+
+          draggingHandle = true;
+          cancelHide();
+          try { History.push(); } catch (ex) {}
+
+          if (e.type === 'mousedown') {
+            document.addEventListener('mousemove', onHandleMouseMove);
+            document.addEventListener('mouseup', onHandleMouseUp);
+          } else if (e.type === 'touchstart') {
+            document.addEventListener('touchmove', onHandleTouchMove, { passive: false });
+            document.addEventListener('touchend', onHandleTouchEnd);
+          }
+        };
+
+        dirHandle.addEventListener('mousedown', startHandleDrag);
+        dirHandle.addEventListener('touchstart', startHandleDrag, { passive: false });
+
+        // include direction cleanup in main cleanup
+        const dirCleanup = () => {
+          try {
+            const ln = svg.querySelector('line');
+            if (ln) {
+              ln.removeEventListener('mouseenter', showDirection);
+              ln.removeEventListener('mousemove', showDirection);
+              ln.removeEventListener('mouseleave', hideDirection);
+            }
+          } catch (e) {}
+          try { dirHandle.removeEventListener('mousedown', startHandleDrag); } catch (e) {}
+          try { dirHandle.removeEventListener('touchstart', startHandleDrag); } catch (e) {}
+          try { dirHandle.removeEventListener('mouseenter', cancelHide); } catch (e) {}
+          try { dirHandle.removeEventListener('mouseleave', scheduleHide); } catch (e) {}
+          try { cancelHide(); } catch (e) {}
+        };
+
+        // attach to svg so main cleanup can call it
+        svg._finishConeDirCleanup = dirCleanup;
+      } catch (e) {}
+
+      // Provide a cleanup function in case the SVG is removed/replaced
+      svg._finishConeDragCleanup = () => {
+        try { if (lineEl) lineEl.removeEventListener('mousedown', startDrag); } catch (e) {}
+        try { if (lineEl) lineEl.removeEventListener('touchstart', startDrag); } catch (e) {}
+        try { document.removeEventListener('mousemove', onMouseMove); } catch (e) {}
+        try { document.removeEventListener('mouseup', onMouseUp); } catch (e) {}
+        try { document.removeEventListener('touchmove', onTouchMove); } catch (e) {}
+        try { document.removeEventListener('touchend', onTouchEnd); } catch (e) {}
+        try { if (svg._finishConeDirCleanup) svg._finishConeDirCleanup(); } catch (e) {}
+        try { svg._finishConeDirCleanup = null; } catch (e) {}
+      };
+    } catch (e) {}
   },
 
   /** Remove the finish-cone connecting line */
@@ -1446,7 +1837,12 @@ const App = {
       const cone1 = Cones.cones.find(c => c.id === this._currentFinishConePair[0]);
       const cone2 = Cones.cones.find(c => c.id === this._currentFinishConePair[1]);
       if (cone1 && cone2) {
+        // Preserve direction-overlay visibility across redraws
+        const wasDirVisible = this._finishConeLineElement && this._finishConeLineElement._dirOverlayVisible;
         this._drawFinishConeConnectingLine(cone1.lngLat, cone2.lngLat);
+        if (wasDirVisible) {
+          try { if (this._finishConeLineElement && this._finishConeLineElement._showDirOverlay) this._finishConeLineElement._showDirOverlay(); } catch (e) {}
+        }
       }
     }
   },
