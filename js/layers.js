@@ -10,7 +10,6 @@ const Layers = {
       obstacles:   { label: 'Obstacles',    visible: true },
       workers:     { label: 'Workers',      visible: true },
       drivingLine: { label: 'Driving Line', visible: true },
-      drivingLine2: { label: 'Driving Line 2', visible: true },
       measurements:{ label: 'Measurements', visible: true },
       notes:       { label: 'Notes',        visible: true },
       grid:        { label: 'Grid',         visible: true },
@@ -27,7 +26,19 @@ const Layers = {
     if (!container) return;
 
     container.innerHTML = '';
-    for (const [key, layer] of Object.entries(this._layers)) {
+
+    // collect extra driving line keys and sort them numerically
+    const extraKeys = Object.keys(this._layers)
+      .filter(k => k.startsWith('drivingLineExtra'))
+      .sort((a, b) => {
+        const ai = parseInt(a.slice('drivingLineExtra'.length), 10);
+        const bi = parseInt(b.slice('drivingLineExtra'.length), 10);
+        return ai - bi;
+      });
+
+    let extrasRendered = false;
+
+    const buildRow = (key, layer) => {
       const row = document.createElement('label');
       row.className = 'layer-toggle';
 
@@ -63,7 +74,31 @@ const Layers = {
 
       row.appendChild(cb);
       row.appendChild(span);
-      container.appendChild(row);
+      return row;
+    };
+
+    // Render layers, but skip the extra driving-line keys in the main pass.
+    for (const [key, layer] of Object.entries(this._layers)) {
+      if (key.startsWith('drivingLineExtra')) continue;
+      container.appendChild(buildRow(key, layer));
+      // Immediately after the main Driving Line entry, insert extras (sorted)
+      if (key === 'drivingLine') {
+        extraKeys.forEach(k => {
+          const l = this._layers[k];
+          if (!l) return;
+          container.appendChild(buildRow(k, l));
+        });
+        extrasRendered = true;
+      }
+    }
+
+    // If there was no `drivingLine` key, append extras at the end.
+    if (extraKeys.length && !extrasRendered) {
+      extraKeys.forEach(k => {
+        const l = this._layers[k];
+        if (!l) return;
+        container.appendChild(buildRow(k, l));
+      });
     }
   },
 
@@ -105,19 +140,6 @@ const Layers = {
         if (App.mode === 'map') {
           try {
             App.map.setPaintProperty('driving-line-layer', 'line-opacity', visible ? 1 : 0);
-          } catch (e) {}
-        } else {
-          ImageMap._redrawLineCanvas();
-        }
-        break;
-      case 'drivingLine2':
-        DrivingLine2.waypoints.forEach(wp => {
-          wp.marker.getElement().style.display = visible ? '' : 'none';
-          if (wp.marker._container) wp.marker._container.style.display = visible ? '' : 'none';
-        });
-        if (App.mode === 'map') {
-          try {
-            App.map.setPaintProperty('driving-line2-layer', 'line-opacity', visible ? 1 : 0);
           } catch (e) {}
         } else {
           ImageMap._redrawLineCanvas();
@@ -200,6 +222,25 @@ const Layers = {
   addExtraDrivingLineLayer(index, lineObj) {
     this._layers[`drivingLineExtra${index}`] = { label: `Driving Line ${index}`, visible: true };
     this._renderPanel();
+  },
+
+  /** Remove all dynamic extra driving line entries from the panel */
+  clearExtraDrivingLineLayers() {
+    Object.keys(this._layers).forEach((key) => {
+      if (key.startsWith('drivingLineExtra')) {
+        delete this._layers[key];
+      }
+    });
+    this._renderPanel();
+  },
+
+  /** Remove a specific dynamic extra driving line entry from the panel */
+  removeExtraDrivingLineLayer(index) {
+    const key = `drivingLineExtra${index}`;
+    if (this._layers[key]) {
+      delete this._layers[key];
+      this._renderPanel();
+    }
   },
 
   /** Remove a dynamic image layer entry from the panel */

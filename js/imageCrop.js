@@ -245,10 +245,6 @@ const ImageCrop = {
       for (const wp of DrivingLine.waypoints) shift(wp.lngLat);
       DrivingLine._updateLine();
     }
-    if (typeof DrivingLine2 !== 'undefined') {
-      for (const wp of DrivingLine2.waypoints) shift(wp.lngLat);
-      DrivingLine2._updateLine();
-    }
     // Extra optional driving lines
     if (typeof App !== 'undefined' && Array.isArray(App._extraDrivingLines)) {
       for (const line of App._extraDrivingLines) {

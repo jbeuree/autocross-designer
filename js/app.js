@@ -33,8 +33,8 @@ const App = {
   _leanerStart: null,     // first click for leaner tool
   _currentFinishConePair: [], // IDs of the current finish-cone pair [id1, id2]
   _extraDrivingLines: [],   // dynamically-added driving line instances
-  _nextExtraLineIndex: 3,   // counter for line numbering
-  // Color palette cycling for extra driving lines (index 0 = Line 3, etc.)
+  _nextExtraLineIndex: 2,   // counter for line numbering
+  // Color palette cycling for extra driving lines (index 0 = Line 2, etc.)
   _extraLineColors: ['#22c55e','#ef4444','#a855f7','#ec4899','#14b8a6','#eab308'],
   _finishConeLineElement: null, // SVG line connecting the finish-cone pair
   _finishConeStart: null,  // first click for finish-cone tool
@@ -236,10 +236,6 @@ const App = {
       onUpdate: () => this._updateInfo(),
     });
 
-    DrivingLine2.init(this.map, {
-      onUpdate: () => this._updateInfo(),
-    });
-
     // Restore any extra driving lines created before init (e.g. during _loadCourseData)
     // — handled lazily inside _addExtraDrivingLine via the map reference being ready here.
 
@@ -372,9 +368,6 @@ const App = {
     if (typeof DrivingLine !== 'undefined' && DrivingLine.setSolid) {
       DrivingLine.setSolid(solid);
     }
-    if (typeof DrivingLine2 !== 'undefined' && DrivingLine2.setSolid) {
-      DrivingLine2.setSolid(solid);
-    }
     this._extraDrivingLines.forEach(l => l.setSolid(solid));
     if (typeof ImageMap !== 'undefined' && ImageMap._redrawLineCanvas) {
       ImageMap._redrawLineCanvas();
@@ -382,7 +375,7 @@ const App = {
   },
 
   /**
-   * Factory: create a new extra driving line object (Line 3, Line 4, …).
+   * Factory: create a new extra driving line object (Line 2, Line 3, …).
    * Inline so no extra <script> is needed.
    */
   _makeExtraDrivingLine(index, color) {
@@ -417,10 +410,9 @@ const App = {
         this._map.addLayer({
           id: this.layerId,
           type: 'line',
-          source: this.sourceId,
           paint: {
             'line-color': this.color,
-            'line-width': 3,
+              'line-width': 3,
             'line-dasharray': this._defaultDashArray.slice(),
           },
         });
@@ -487,6 +479,22 @@ const App = {
         if (src) src.setData(this._buildGeoJSON());
       },
 
+      destroy() {
+        // Remove markers and clear internal state
+        try { this.clear(); } catch (e) {}
+        // Remove map layer/source if present (mapbox)
+        try {
+          if (this._map && this._map.getLayer && this._map.getLayer(this.layerId)) {
+            this._map.removeLayer(this.layerId);
+          }
+        } catch (e) {}
+        try {
+          if (this._map && this._map.getSource && this._map.getSource(this.sourceId)) {
+            this._map.removeSource(this.sourceId);
+          }
+        } catch (e) {}
+      },
+
       _buildGeoJSON() {
         if (this.waypoints.length < 2) return { type: 'FeatureCollection', features: [] };
         const raw = this.waypoints.map(wp => wp.lngLat);
@@ -520,10 +528,33 @@ const App = {
     return line;
   },
 
-  /** Dynamically add a new optional driving line (Line 3, 4, …) */
+  /** Remove all dynamically-added optional driving lines and their UI */
+  _resetExtraDrivingLines() {
+    this._extraDrivingLines.forEach(line => line.clear());
+    this._extraDrivingLines = [];
+    this._nextExtraLineIndex = 2;
+
+    document.querySelectorAll('[id^="btn-clear-line"]').forEach((btn) => {
+      const index = parseInt(btn.id.replace('btn-clear-line', ''), 10);
+      if (!Number.isNaN(index) && index >= 2) btn.remove();
+    });
+    document.querySelectorAll('.tool-btn[data-tool^="drivingline"]').forEach((btn) => {
+      const index = parseInt(btn.dataset.tool.replace('drivingline', ''), 10);
+      if (!Number.isNaN(index) && index >= 2) btn.remove();
+    });
+
+    if (typeof Layers !== 'undefined' && Layers.clearExtraDrivingLineLayers) {
+      Layers.clearExtraDrivingLineLayers();
+    }
+    if (this.activeTool && this.activeTool.startsWith('drivingline') && this.activeTool !== 'drivingline') {
+      this._setActiveTool('drivingline');
+    }
+  },
+
+  /** Dynamically add a new optional driving line (Line 2, 3, …) */
   _addExtraDrivingLine() {
     const idx = this._nextExtraLineIndex;
-    const color = this._extraLineColors[(idx - 3) % this._extraLineColors.length];
+    const color = this._extraLineColors[(idx - 2) % this._extraLineColors.length];
     const line = this._makeExtraDrivingLine(idx, color);
     this._extraDrivingLines.push(line);
     this._nextExtraLineIndex++;
@@ -544,9 +575,26 @@ const App = {
     const clearBtn = document.createElement('button');
     clearBtn.className = 'tool-btn';
     clearBtn.id = `btn-clear-line${idx}`;
-    clearBtn.title = `Clear Driving Line ${idx}`;
-    clearBtn.innerHTML = `<span class="tool-icon" style="color:${color}">&#10060;</span> Clear Line ${idx}`;
-    clearBtn.addEventListener('click', () => { History.push(); line.clear(); });
+    clearBtn.title = `Delete Driving Line ${idx}`;
+    clearBtn.innerHTML = `<span class="tool-icon" style="color:${color}">&#10060;</span> Delete Line ${idx}`;
+    clearBtn.addEventListener('click', () => {
+      History.push();
+      // Destroy the line (remove markers, layer, source)
+      try { if (line && typeof line.destroy === 'function') line.destroy(); else if (line && typeof line.clear === 'function') line.clear(); } catch (e) {}
+      // Remove the layer entry from Layers panel
+      if (typeof Layers !== 'undefined' && Layers.removeExtraDrivingLineLayer) {
+        try { Layers.removeExtraDrivingLineLayer(idx); } catch (e) {}
+      }
+      // Remove toolbar buttons
+      try { drawBtn.remove(); } catch (e) {}
+      try { clearBtn.remove(); } catch (e) {}
+      // Remove from App state
+      try { this._extraDrivingLines = this._extraDrivingLines.filter(l => l.index !== idx); } catch (e) {}
+      // Revert active tool if it was the deleted line
+      try { if (this.activeTool === `drivingline${idx}`) this._setActiveTool('drivingline'); } catch (e) {}
+      // Redraw image-mode canvas if applicable
+      try { if (typeof ImageMap !== 'undefined' && ImageMap._redrawLineCanvas) ImageMap._redrawLineCanvas(); } catch (e) {}
+    });
 
     section.appendChild(drawBtn);
     section.appendChild(clearBtn);
@@ -629,16 +677,11 @@ const App = {
         DrivingLine.addWaypoint(lngLat);
         break;
 
-      case 'drivingline2':
-        History.push();
-        DrivingLine2.addWaypoint(lngLat);
-        break;
-
       default:
-        // Handle dynamically-created extra driving line tools (drivingline3, drivingline4, …)
+        // Handle dynamically-created extra driving line tools (drivinglineN for N >= 2)
         if (this.activeTool && this.activeTool.startsWith('drivingline')) {
           const extraIdx = parseInt(this.activeTool.slice('drivingline'.length), 10);
-          if (extraIdx >= 3) {
+          if (extraIdx >= 2) {
             const extraLine = this._extraDrivingLines.find(l => l.index === extraIdx);
             if (extraLine) {
               History.push();
@@ -1574,12 +1617,7 @@ const App = {
       DrivingLine.clear();
     });
 
-    document.getElementById('btn-clear-line2').addEventListener('click', () => {
-      History.push();
-      DrivingLine2.clear();
-    });
-
-    // "Add optional line" button — dynamically creates Line 3, Line 4, …
+    // "Add optional line" button — dynamically creates Line 2, Line 3, …
     document.getElementById('btn-add-optional-line').addEventListener('click', () => {
       this._addExtraDrivingLine();
     });
@@ -1616,7 +1654,7 @@ const App = {
         // Detect if any user-defined elements exist to decide whether to confirm
         const hasCones = typeof Cones !== 'undefined' && Array.isArray(Cones.cones) && Cones.cones.length > 0;
         const hasDL1 = typeof DrivingLine !== 'undefined' && Array.isArray(DrivingLine.waypoints) && DrivingLine.waypoints.length > 0;
-        const hasDL2 = typeof DrivingLine2 !== 'undefined' && Array.isArray(DrivingLine2.waypoints) && DrivingLine2.waypoints.length > 0;
+        const hasExtraLines = this._extraDrivingLines.some(line => Array.isArray(line.waypoints) && line.waypoints.length > 0);
         const hasMeasurements = typeof Measurements !== 'undefined' && Array.isArray(Measurements.measurements) && Measurements.measurements.length > 0;
         const hasNotes = typeof Notes !== 'undefined' && Array.isArray(Notes.notes) && Notes.notes.length > 0;
         const hasObstacles = typeof Obstacles !== 'undefined' && Array.isArray(Obstacles.obstacles) && Obstacles.obstacles.length > 0;
@@ -1624,7 +1662,7 @@ const App = {
         const hasArrows = typeof Arrows !== 'undefined' && Array.isArray(Arrows.arrows) && Arrows.arrows.length > 0;
         const hasImageLayers = typeof ImageLayers !== 'undefined' && Array.isArray(ImageLayers._layers) && ImageLayers._layers.length > 0;
 
-        const hasElements = hasCones || hasDL1 || hasDL2 || hasMeasurements || hasNotes || hasObstacles || hasWorkers || hasArrows || hasImageLayers;
+        const hasElements = hasCones || hasDL1 || hasExtraLines || hasMeasurements || hasNotes || hasObstacles || hasWorkers || hasArrows || hasImageLayers;
 
         // Only ask for confirmation if there's something to clear
         if (hasElements) {
@@ -1634,7 +1672,7 @@ const App = {
 
         try {
           if (hasDL1 && typeof DrivingLine !== 'undefined' && DrivingLine.clear) DrivingLine.clear();
-          if (hasDL2 && typeof DrivingLine2 !== 'undefined' && DrivingLine2.clear) DrivingLine2.clear();
+          this._resetExtraDrivingLines();
           if (hasCones && typeof Cones !== 'undefined' && Cones.clearAll) Cones.clearAll();
           if (hasObstacles && typeof Obstacles !== 'undefined' && Obstacles.clearAll) Obstacles.clearAll();
           if (hasNotes && typeof Notes !== 'undefined' && Notes.clearAll) Notes.clearAll();
@@ -2396,7 +2434,6 @@ const App = {
     data.startConePair = this._currentStartConePair.slice(); // Include start cone pair
     data.startBeamPair = this._currentStartBeamPair.slice(); // Include start beam pair
     data.finishConePair = this._currentFinishConePair.slice(); // Include finish cone pair
-    data.drivingLine2 = DrivingLine2.getData();
     data.imageLayers = ImageLayers.getData();
     data.statsOverlay = StatsOverlay.getData();
     data.scaleOverlay = ScaleOverlay.getData();
@@ -2441,23 +2478,14 @@ const App = {
       }
     }
     if (data.drivingLine) DrivingLine.loadData(data.drivingLine);
-    if (data.drivingLine2) DrivingLine2.loadData(data.drivingLine2);
-    // Restore extra driving lines
+    this._resetExtraDrivingLines();
+    // Migrate legacy drivingLine2 saves into the first dynamic optional line.
+    if (Array.isArray(data.drivingLine2) && data.drivingLine2.length > 0) {
+      const legacyLine = this._addExtraDrivingLine();
+      legacyLine.loadData(data.drivingLine2);
+    }
     if (Array.isArray(data.extraDrivingLines) && data.extraDrivingLines.length > 0) {
-      // Clear any already-created extra lines first (e.g. on re-import)
-      this._extraDrivingLines.forEach(l => l.clear());
-      this._extraDrivingLines = [];
-      this._nextExtraLineIndex = 3;
-      // Remove any previously-injected buttons
-      document.querySelectorAll('[id^="btn-clear-line"]').forEach(btn => {
-        const n = parseInt(btn.id.replace('btn-clear-line', ''), 10);
-        if (n >= 3) btn.remove();
-      });
-      document.querySelectorAll('.tool-btn[data-tool^="drivingline"]').forEach(btn => {
-        const n = parseInt(btn.dataset.tool.replace('drivingline', ''), 10);
-        if (n >= 3) btn.remove();
-      });
-      data.extraDrivingLines.forEach(wpData => {
+      data.extraDrivingLines.forEach((wpData) => {
         const line = this._addExtraDrivingLine();
         line.loadData(wpData);
       });
@@ -2550,17 +2578,6 @@ const App = {
         : 'Line: -- ft';
     }
 
-    const lineLen2 = Distance.totalLength(DrivingLine2.waypoints);
-    if (document.getElementById('line2-length')) {
-      if (lineLen2 < 0) {
-        document.getElementById('line2-length').textContent = 'Line 2: N/A';
-      } else {
-        document.getElementById('line2-length').textContent = lineLen2 > 0
-          ? `Line 2: ${lineLen2.toFixed(0)} ft`
-          : 'Line 2: -- ft';
-      }
-    }
-
     Notes.renderSidebar();
     Workers.renderSidebar();
     Venue.renderSidebar();
@@ -2626,7 +2643,7 @@ const App = {
 
       // Number keys 1-9 for quick tool select
       if (e.key >= '1' && e.key <= '9' && !e.ctrlKey && !e.metaKey) {
-        const tools = ['regular', 'pointer', 'start-cone', 'finish-cone', 'select', 'drivingline', 'drivingline2', 'measure', 'note', 'gate'];
+        const tools = ['regular', 'pointer', 'start-cone', 'finish-cone', 'select', 'drivingline', 'measure', 'note', 'gate'];
         const idx = parseInt(e.key) - 1;
         if (idx < tools.length) {
           this._setActiveTool(tools[idx]);

@@ -625,7 +625,6 @@ const ImageMap = {
 
     const lineSources = [
       { sourceId: 'driving-line-source',  color: '#060707', layerKey: 'drivingLine' },
-      { sourceId: 'driving-line2-source', color: '#060707', layerKey: 'drivingLine2' },
     ];
 
     // Append any extra driving line sources
