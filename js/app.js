@@ -71,6 +71,23 @@ const App = {
       }
     }
 
+    // If configured, skip the initial banner and auto-start with a Blank Canvas.
+    // This only applies when there's no pending import to process.
+    if (window.AUTO_START_BLANK) {
+      if (!pendingRaw) {
+        const c = document.createElement('canvas');
+        c.width = 800;
+        c.height = 1280;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, c.width, c.height);
+        this.mode = 'image';
+        this._initImageMode(c.toDataURL('image/png'), 'Blank Canvas');
+        this._sharedCourse = sharedCourse;
+        return;
+      }
+    }
+
     // Show mode selection banner (may auto-select based on pending import)
     const choice = await ImageMode.showBanner(autoMode);
     this.mode = choice.mode;
