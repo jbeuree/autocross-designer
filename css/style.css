@@ -488,7 +488,17 @@ startfinish-btn {
   width: 8px;
   height: 8px;
   background: #60a5fa;
-  border-color: #3bf68c;
+  border: 1px solid #3b82f6;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* Dynamically-added optional driving line waypoints match Line 1 styling. */
+.waypoint-marker-extra {
+  width: 8px;
+  height: 8px;
+  background: #60a5fa;
+  border: 1px solid #3b82f6;
   border-radius: 50%;
   cursor: pointer;
 }

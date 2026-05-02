@@ -32,6 +32,10 @@ const App = {
   _startBeamStart: null,  // first click for start-beam tool
   _leanerStart: null,     // first click for leaner tool
   _currentFinishConePair: [], // IDs of the current finish-cone pair [id1, id2]
+  _extraDrivingLines: [],   // dynamically-added driving line instances
+  _nextExtraLineIndex: 3,   // counter for line numbering
+  // Color palette cycling for extra driving lines (index 0 = Line 3, etc.)
+  _extraLineColors: ['#22c55e','#ef4444','#a855f7','#ec4899','#14b8a6','#eab308'],
   _finishConeLineElement: null, // SVG line connecting the finish-cone pair
   _finishConeStart: null,  // first click for finish-cone tool
   
@@ -236,6 +240,9 @@ const App = {
       onUpdate: () => this._updateInfo(),
     });
 
+    // Restore any extra driving lines created before init (e.g. during _loadCourseData)
+    // — handled lazily inside _addExtraDrivingLine via the map reference being ready here.
+
     Measurements.init(this.map);
 
     Notes.init(this.map, {
@@ -368,9 +375,188 @@ const App = {
     if (typeof DrivingLine2 !== 'undefined' && DrivingLine2.setSolid) {
       DrivingLine2.setSolid(solid);
     }
+    this._extraDrivingLines.forEach(l => l.setSolid(solid));
     if (typeof ImageMap !== 'undefined' && ImageMap._redrawLineCanvas) {
       ImageMap._redrawLineCanvas();
     }
+  },
+
+  /**
+   * Factory: create a new extra driving line object (Line 3, Line 4, …).
+   * Inline so no extra <script> is needed.
+   */
+  _makeExtraDrivingLine(index, color) {
+    const self = this;
+    const sourceId = `driving-line${index}-source`;
+    const layerId = `driving-line${index}-layer`;
+    const line = {
+      index,
+      color,
+      sourceId,
+      layerId,
+      waypoints: [],
+      _map: null,
+      _onUpdate: null,
+      _isSolid: false,
+      _defaultDashArray: [2, 2],
+
+      init(map, { onUpdate }) {
+        this._map = map;
+        this._onUpdate = onUpdate;
+        const addIt = () => this._addLayer();
+        if (map.loaded && map.loaded()) { addIt(); }
+        else { map.on('load', addIt); }
+      },
+
+      _addLayer() {
+        if (this._map.getSource(this.sourceId)) return;
+        this._map.addSource(this.sourceId, {
+          type: 'geojson',
+          data: this._buildGeoJSON(),
+        });
+        this._map.addLayer({
+          id: this.layerId,
+          type: 'line',
+          source: this.sourceId,
+          paint: {
+            'line-color': this.color,
+            'line-width': 3,
+            'line-dasharray': this._defaultDashArray.slice(),
+          },
+        });
+        this.setSolid(this._isSolid);
+      },
+
+      addWaypoint(lngLat) {
+        const el = document.createElement('div');
+        el.className = 'waypoint-marker-extra';
+        const marker = window.createMarker({ element: el, draggable: true })
+          .setLngLat(lngLat)
+          .addTo(this._map);
+        const wp = { lngLat: [lngLat.lng, lngLat.lat], marker };
+        marker.on('dragend', () => {
+          const pos = marker.getLngLat();
+          wp.lngLat = [pos.lng, pos.lat];
+          this._updateLine();
+          if (this._onUpdate) this._onUpdate();
+        });
+        el.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          marker.remove();
+          const idx = this.waypoints.indexOf(wp);
+          if (idx !== -1) this.waypoints.splice(idx, 1);
+          this._updateLine();
+          if (this._onUpdate) this._onUpdate();
+        });
+        this.waypoints.push(wp);
+        this._updateLine();
+        if (this._onUpdate) this._onUpdate();
+      },
+
+      clear() {
+        this.waypoints.forEach(wp => wp.marker.remove());
+        this.waypoints = [];
+        this._updateLine();
+        if (this._onUpdate) this._onUpdate();
+      },
+
+      getData() {
+        return this.waypoints.map(wp => ({ lngLat: wp.lngLat }));
+      },
+
+      loadData(data) {
+        this.clear();
+        data.forEach(d => {
+          this.addWaypoint({ lng: d.lngLat[0], lat: d.lngLat[1] });
+        });
+      },
+
+      setSolid(solid) {
+        this._isSolid = !!solid;
+        if (!this._map || !this._map.getLayer || !this._map.getLayer(this.layerId)) return;
+        this._map.setPaintProperty(
+          this.layerId,
+          'line-dasharray',
+          this._isSolid ? null : this._defaultDashArray.slice()
+        );
+      },
+
+      _updateLine() {
+        const src = this._map && this._map.getSource(this.sourceId);
+        if (src) src.setData(this._buildGeoJSON());
+      },
+
+      _buildGeoJSON() {
+        if (this.waypoints.length < 2) return { type: 'FeatureCollection', features: [] };
+        const raw = this.waypoints.map(wp => wp.lngLat);
+        const smooth = this._catmullRomSpline(raw, 20);
+        return {
+          type: 'FeatureCollection',
+          features: [{ type: 'Feature', geometry: { type: 'LineString', coordinates: smooth } }],
+        };
+      },
+
+      _catmullRomSpline(points, numSegments) {
+        if (points.length < 2) return points.slice();
+        const result = [];
+        for (let i = 0; i < points.length - 1; i++) {
+          const p0 = points[i === 0 ? 0 : i - 1];
+          const p1 = points[i];
+          const p2 = points[i + 1];
+          const p3 = points[i + 2 >= points.length ? points.length - 1 : i + 2];
+          for (let t = 0; t < numSegments; t++) {
+            const s = t / numSegments, s2 = s * s, s3 = s2 * s;
+            result.push([
+              0.5 * ((2*p1[0]) + (-p0[0]+p2[0])*s + (2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*s2 + (-p0[0]+3*p1[0]-3*p2[0]+p3[0])*s3),
+              0.5 * ((2*p1[1]) + (-p0[1]+p2[1])*s + (2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*s2 + (-p0[1]+3*p1[1]-3*p2[1]+p3[1])*s3),
+            ]);
+          }
+        }
+        result.push(points[points.length - 1]);
+        return result;
+      },
+    };
+    return line;
+  },
+
+  /** Dynamically add a new optional driving line (Line 3, 4, …) */
+  _addExtraDrivingLine() {
+    const idx = this._nextExtraLineIndex;
+    const color = this._extraLineColors[(idx - 3) % this._extraLineColors.length];
+    const line = this._makeExtraDrivingLine(idx, color);
+    this._extraDrivingLines.push(line);
+    this._nextExtraLineIndex++;
+
+    // Init with current map — map is always ready by the time a user clicks the button
+    line.init(this.map, { onUpdate: () => this._updateInfo() });
+    line.setSolid(this._solidDrivingLine);
+
+    // Inject toolbar buttons
+    const section = document.querySelector('.toolbar-section[data-section="driving-line"]');
+    const drawBtn = document.createElement('button');
+    drawBtn.className = 'tool-btn';
+    drawBtn.dataset.tool = `drivingline${idx}`;
+    drawBtn.title = `Draw Driving Line ${idx}`;
+    drawBtn.innerHTML = `<span class="tool-icon" style="color:${color}">&#10137;</span> Line ${idx}`;
+    drawBtn.addEventListener('click', () => this._setActiveTool(`drivingline${idx}`));
+
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'tool-btn';
+    clearBtn.id = `btn-clear-line${idx}`;
+    clearBtn.title = `Clear Driving Line ${idx}`;
+    clearBtn.innerHTML = `<span class="tool-icon" style="color:${color}">&#10060;</span> Clear Line ${idx}`;
+    clearBtn.addEventListener('click', () => { History.push(); line.clear(); });
+
+    section.appendChild(drawBtn);
+    section.appendChild(clearBtn);
+
+    // Add to layers panel
+    if (typeof Layers !== 'undefined' && Layers.addExtraDrivingLineLayer) {
+      Layers.addExtraDrivingLineLayer(idx, line);
+    }
+
+    return line;
   },
 
   /** Handle click on the map */
@@ -446,6 +632,20 @@ const App = {
       case 'drivingline2':
         History.push();
         DrivingLine2.addWaypoint(lngLat);
+        break;
+
+      default:
+        // Handle dynamically-created extra driving line tools (drivingline3, drivingline4, …)
+        if (this.activeTool && this.activeTool.startsWith('drivingline')) {
+          const extraIdx = parseInt(this.activeTool.slice('drivingline'.length), 10);
+          if (extraIdx >= 3) {
+            const extraLine = this._extraDrivingLines.find(l => l.index === extraIdx);
+            if (extraLine) {
+              History.push();
+              extraLine.addWaypoint(lngLat);
+            }
+          }
+        }
         break;
 
       case 'measure':
@@ -1379,6 +1579,11 @@ const App = {
       DrivingLine2.clear();
     });
 
+    // "Add optional line" button — dynamically creates Line 3, Line 4, …
+    document.getElementById('btn-add-optional-line').addEventListener('click', () => {
+      this._addExtraDrivingLine();
+    });
+
     // Undo/Redo buttons
     document.getElementById('btn-undo').addEventListener('click', () => History.undo());
     document.getElementById('btn-redo').addEventListener('click', () => History.redo());
@@ -2195,6 +2400,10 @@ const App = {
     data.imageLayers = ImageLayers.getData();
     data.statsOverlay = StatsOverlay.getData();
     data.scaleOverlay = ScaleOverlay.getData();
+    // Serialize extra driving lines
+    if (this._extraDrivingLines.length > 0) {
+      data.extraDrivingLines = this._extraDrivingLines.map(l => l.getData());
+    }
     if (this.mode === 'image' && ImageMap._imageWidth > 0) {
       const bgCanvas = document.createElement('canvas');
       bgCanvas.width = ImageMap._imageWidth;
@@ -2233,6 +2442,26 @@ const App = {
     }
     if (data.drivingLine) DrivingLine.loadData(data.drivingLine);
     if (data.drivingLine2) DrivingLine2.loadData(data.drivingLine2);
+    // Restore extra driving lines
+    if (Array.isArray(data.extraDrivingLines) && data.extraDrivingLines.length > 0) {
+      // Clear any already-created extra lines first (e.g. on re-import)
+      this._extraDrivingLines.forEach(l => l.clear());
+      this._extraDrivingLines = [];
+      this._nextExtraLineIndex = 3;
+      // Remove any previously-injected buttons
+      document.querySelectorAll('[id^="btn-clear-line"]').forEach(btn => {
+        const n = parseInt(btn.id.replace('btn-clear-line', ''), 10);
+        if (n >= 3) btn.remove();
+      });
+      document.querySelectorAll('.tool-btn[data-tool^="drivingline"]').forEach(btn => {
+        const n = parseInt(btn.dataset.tool.replace('drivingline', ''), 10);
+        if (n >= 3) btn.remove();
+      });
+      data.extraDrivingLines.forEach(wpData => {
+        const line = this._addExtraDrivingLine();
+        line.loadData(wpData);
+      });
+    }
     if (data.measurements) Measurements.loadData(data.measurements);
     if (data.notes) Notes.loadData(data.notes);
     if (data.obstacles) Obstacles.loadData(data.obstacles);

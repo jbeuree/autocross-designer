@@ -163,6 +163,23 @@ const Layers = {
           if (typeof ImageLayers !== 'undefined') {
             ImageLayers.setVisible(id, visible);
           }
+        } else if (key.startsWith('drivingLineExtra')) {
+          // Extra optional driving line — find instance by index
+          const idx = parseInt(key.slice('drivingLineExtra'.length), 10);
+          if (typeof App !== 'undefined' && Array.isArray(App._extraDrivingLines)) {
+            const line = App._extraDrivingLines.find(l => l.index === idx);
+            if (line) {
+              line.waypoints.forEach(wp => {
+                wp.marker.getElement().style.display = visible ? '' : 'none';
+                if (wp.marker._container) wp.marker._container.style.display = visible ? '' : 'none';
+              });
+              if (App.mode === 'map') {
+                try { App.map.setPaintProperty(line.layerId, 'line-opacity', visible ? 1 : 0); } catch (e) {}
+              } else if (typeof ImageMap !== 'undefined' && ImageMap._redrawLineCanvas) {
+                ImageMap._redrawLineCanvas();
+              }
+            }
+          }
         }
         break;
     }
@@ -176,6 +193,12 @@ const Layers = {
   /** Add a dynamic image layer entry to the panel */
   addImageLayer(id, label) {
     this._layers[`imageLayer_${id}`] = { label: label || `Image ${id}`, visible: true };
+    this._renderPanel();
+  },
+
+  /** Add a dynamic extra driving line entry to the panel */
+  addExtraDrivingLineLayer(index, lineObj) {
+    this._layers[`drivingLineExtra${index}`] = { label: `Driving Line ${index}`, visible: true };
     this._renderPanel();
   },
 

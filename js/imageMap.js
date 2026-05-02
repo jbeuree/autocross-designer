@@ -628,6 +628,13 @@ const ImageMap = {
       { sourceId: 'driving-line2-source', color: '#060707', layerKey: 'drivingLine2' },
     ];
 
+    // Append any extra driving line sources
+    if (typeof App !== 'undefined' && Array.isArray(App._extraDrivingLines)) {
+      App._extraDrivingLines.forEach(line => {
+        lineSources.push({ sourceId: line.sourceId, color: '#060707', layerKey: `drivingLineExtra${line.index}` });
+      });
+    }
+
     for (const { sourceId, color, layerKey } of lineSources) {
       if (!Layers.isVisible(layerKey)) continue;
       const src = this._sources[sourceId];
