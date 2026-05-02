@@ -13,6 +13,8 @@ class ImageMarker {
     this._lngLat = null;       // image pixel coords [x, y]
     this._map = null;
     this._dragCallbacks = [];
+    this._dragMoveCallbacks = [];
+    this._dragStartCallbacks = [];
     this._added = false;
 
     // Wrapper div for positioning inside the image wrapper
@@ -73,6 +75,10 @@ class ImageMarker {
   on(event, callback) {
     if (event === 'dragend') {
       this._dragCallbacks.push(callback);
+    } else if (event === 'drag') {
+      this._dragMoveCallbacks.push(callback);
+    } else if (event === 'dragstart') {
+      this._dragStartCallbacks.push(callback);
     }
     return this;
   }
@@ -109,6 +115,7 @@ class ImageMarker {
       dragging = true;
       startX = e.clientX;
       startY = e.clientY;
+      this._fireDragStart();
       document.addEventListener('mousemove', onMouseMove);
       document.addEventListener('mouseup', onMouseUp);
     };
@@ -119,6 +126,7 @@ class ImageMarker {
       dragging = true;
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
+      this._fireDragStart();
       document.addEventListener('touchmove', onTouchMove, { passive: false });
       document.addEventListener('touchend', onTouchEnd);
     };
@@ -133,6 +141,7 @@ class ImageMarker {
       this._lngLat.lng += dx;
       this._lngLat.lat += dy;
       this._updatePosition();
+      this._fireDragMove();
     };
 
     const onTouchMove = (e) => {
@@ -146,6 +155,7 @@ class ImageMarker {
       this._lngLat.lng += dx;
       this._lngLat.lat += dy;
       this._updatePosition();
+      this._fireDragMove();
     };
 
     const onMouseUp = () => {
@@ -166,6 +176,14 @@ class ImageMarker {
 
     this._element.addEventListener('mousedown', onMouseDown);
     this._element.addEventListener('touchstart', onTouchStart, { passive: false });
+  }
+
+  _fireDragStart() {
+    for (const cb of this._dragStartCallbacks) cb();
+  }
+
+  _fireDragMove() {
+    for (const cb of this._dragMoveCallbacks) cb();
   }
 
   _fireDragEnd() {

@@ -211,12 +211,17 @@ const Cones = {
     // Group drag: move all selected items during drag
     marker.on('drag', () => {
       const pos = marker.getLngLat();
+      cone.lngLat = [pos.lng, pos.lat];
       if (typeof Selection !== 'undefined' && Selection.isSelected('cone', cone.id) && Selection.count() > 1) {
         Selection.updateGroupDrag(pos);
       }
       // Live-update any measurements anchored to this cone
       if (typeof Measurements !== 'undefined') {
         Measurements.updateConePosition(cone.id, [pos.lng, pos.lat]);
+      }
+      // Keep pointer cone pointing at its target while dragging
+      if (cone.type === 'pointer') {
+        this._applyPointerRotation(cone);
       }
     });
 
