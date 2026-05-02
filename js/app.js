@@ -1404,19 +1404,37 @@ const App = {
     const loadBgBtn = document.getElementById('btn-load-background');
     if (loadBgBtn) {
       loadBgBtn.addEventListener('click', async () => {
-        if (!confirm('Clear the current course and choose a new background?')) return;
-        History.push();
+        // Detect if any user-defined elements exist to decide whether to confirm
+        const hasCones = typeof Cones !== 'undefined' && Array.isArray(Cones.cones) && Cones.cones.length > 0;
+        const hasDL1 = typeof DrivingLine !== 'undefined' && Array.isArray(DrivingLine.waypoints) && DrivingLine.waypoints.length > 0;
+        const hasDL2 = typeof DrivingLine2 !== 'undefined' && Array.isArray(DrivingLine2.waypoints) && DrivingLine2.waypoints.length > 0;
+        const hasMeasurements = typeof Measurements !== 'undefined' && Array.isArray(Measurements.measurements) && Measurements.measurements.length > 0;
+        const hasNotes = typeof Notes !== 'undefined' && Array.isArray(Notes.notes) && Notes.notes.length > 0;
+        const hasObstacles = typeof Obstacles !== 'undefined' && Array.isArray(Obstacles.obstacles) && Obstacles.obstacles.length > 0;
+        const hasWorkers = typeof Workers !== 'undefined' && Array.isArray(Workers.stations) && Workers.stations.length > 0;
+        const hasArrows = typeof Arrows !== 'undefined' && Array.isArray(Arrows.arrows) && Arrows.arrows.length > 0;
+        const hasImageLayers = typeof ImageLayers !== 'undefined' && Array.isArray(ImageLayers._layers) && ImageLayers._layers.length > 0;
+
+        const hasElements = hasCones || hasDL1 || hasDL2 || hasMeasurements || hasNotes || hasObstacles || hasWorkers || hasArrows || hasImageLayers;
+
+        // Only ask for confirmation if there's something to clear
+        if (hasElements) {
+          if (!confirm('Clear the current course and choose a new background?')) return;
+          History.push();
+        }
+
         try {
-          if (typeof DrivingLine !== 'undefined' && DrivingLine.clear) DrivingLine.clear();
-          if (typeof DrivingLine2 !== 'undefined' && DrivingLine2.clear) DrivingLine2.clear();
-          if (typeof Cones !== 'undefined' && Cones.clearAll) Cones.clearAll();
-          if (typeof Obstacles !== 'undefined' && Obstacles.clearAll) Obstacles.clearAll();
-          if (typeof Notes !== 'undefined' && Notes.clearAll) Notes.clearAll();
-          if (typeof Measurements !== 'undefined' && Measurements.clearAll) Measurements.clearAll();
-          if (typeof Workers !== 'undefined' && Workers.clearAll) Workers.clearAll();
-          if (typeof Arrows !== 'undefined' && Arrows.clearAll) Arrows.clearAll();
+          if (hasDL1 && typeof DrivingLine !== 'undefined' && DrivingLine.clear) DrivingLine.clear();
+          if (hasDL2 && typeof DrivingLine2 !== 'undefined' && DrivingLine2.clear) DrivingLine2.clear();
+          if (hasCones && typeof Cones !== 'undefined' && Cones.clearAll) Cones.clearAll();
+          if (hasObstacles && typeof Obstacles !== 'undefined' && Obstacles.clearAll) Obstacles.clearAll();
+          if (hasNotes && typeof Notes !== 'undefined' && Notes.clearAll) Notes.clearAll();
+          if (hasMeasurements && typeof Measurements !== 'undefined' && Measurements.clearAll) Measurements.clearAll();
+          if (hasWorkers && typeof Workers !== 'undefined' && Workers.clearAll) Workers.clearAll();
+          if (hasArrows && typeof Arrows !== 'undefined' && Arrows.clearAll) Arrows.clearAll();
           if (typeof ImageLayers !== 'undefined' && ImageLayers.loadData) ImageLayers.loadData([]);
         } catch (e) {}
+
         if (typeof Selection !== 'undefined' && Selection.clear) Selection.clear();
         if (typeof Layers !== 'undefined' && Layers.init) Layers.init();
 
