@@ -3751,6 +3751,7 @@ const App = {
   /** Refresh the saved courses list in sidebar */
   _refreshSavedList() {
     const list = document.getElementById('saved-list');
+    if (!list) return;
     const names = Storage.list();
 
     if (names.length === 0) {
@@ -4011,9 +4012,12 @@ _cleanTitle(name, applyTrim = true) {
   // ===== Venue =====
 
   _setupVenue() {
-    document.getElementById('btn-save-venue').addEventListener('click', () => {
-      Venue.saveVenue();
-    });
+    const saveVenueButton = document.getElementById('btn-save-venue');
+    if (saveVenueButton) {
+      saveVenueButton.addEventListener('click', () => {
+        Venue.saveVenue();
+      });
+    }
     Venue.renderSidebar();
   },
 
