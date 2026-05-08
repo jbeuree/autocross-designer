@@ -96,7 +96,50 @@ const ImageLayers = {
     const img = document.createElement('img');
     img.src = layer.src;
     img.draggable = false;
+    img.style.pointerEvents = 'none'; // hit-testing is handled on el via pixel alpha
     el.appendChild(img);
+
+    // Off-screen canvas used to sample pixel alpha for transparent hit-testing
+    const hitCanvas = document.createElement('canvas');
+    const hitCtx = hitCanvas.getContext('2d');
+    let hitReady = false;
+    const buildHitCanvas = () => {
+      if (!img.complete || img.naturalWidth === 0) return;
+      hitCanvas.width  = img.naturalWidth;
+      hitCanvas.height = img.naturalHeight;
+      hitCtx.clearRect(0, 0, hitCanvas.width, hitCanvas.height);
+      hitCtx.drawImage(img, 0, 0);
+      hitReady = true;
+    };
+    if (img.complete) {
+      buildHitCanvas();
+    } else {
+      img.addEventListener('load', buildHitCanvas, { once: true });
+    }
+
+    // On mousemove, sample the alpha at the cursor position relative to the image.
+    // If it is fully transparent, disable pointer-events so clicks fall through.
+    const checkHit = (e) => {
+      if (!hitReady) return;
+      const rect = el.getBoundingClientRect();
+      const nx = (e.clientX - rect.left)  / rect.width;
+      const ny = (e.clientY - rect.top)   / rect.height;
+      // Cursor is outside the element's bounding box — nothing to do
+      if (nx < 0 || nx > 1 || ny < 0 || ny > 1) return;
+      const px = Math.floor(nx * hitCanvas.width);
+      const py = Math.floor(ny * hitCanvas.height);
+      let alpha = 255;
+      try {
+        alpha = hitCtx.getImageData(px, py, 1, 1).data[3];
+      } catch (_) { /* tainted canvas — treat as opaque */ }
+      el.style.pointerEvents = alpha === 0 ? 'none' : 'auto';
+    };
+
+    // Listen on the element itself (while pointer-events is 'auto')
+    el.addEventListener('mousemove', checkHit);
+    // Also listen on the document so we can re-enable pointer-events after they were
+    // set to 'none' — the element won't receive events in that state, but document will.
+    document.addEventListener('mousemove', checkHit);
 
     // Bottom-right resize handle
     const resizeHandle = document.createElement('div');

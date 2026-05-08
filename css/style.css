@@ -1507,7 +1507,7 @@ startfinish-btn {
   position: absolute;
   box-sizing: border-box;
   cursor: move;
-  overflow: hidden;
+  overflow: visible;
 }
 .image-layer-overlay:hover {
   outline: 1px dashed rgba(59, 130, 246, 0.7);
@@ -1528,28 +1528,30 @@ startfinish-btn {
   background: #3b82f6;
   cursor: se-resize;
   opacity: 0;
-  transition: opacity 0.15s;
+  transition: opacity 0.15s 2s;
 }
 .image-layer-delete-btn {
   position: absolute;
-  top: 3px;
-  right: 3px;
+  top: 0;
+  right: 0;
+  transform: translate(50%, -50%);
   width: 18px;
   height: 18px;
   background: rgba(239, 68, 68, 0.85);
-  border-radius: 3px;
+  border-radius: 50%;
   color: #fff;
   font-size: 13px;
   line-height: 18px;
   text-align: center;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.15s;
+  transition: opacity 0.15s 2s;
   z-index: 1;
 }
 .image-layer-overlay:hover .image-layer-resize-handle,
 .image-layer-overlay:hover .image-layer-delete-btn {
   opacity: 1;
+  transition: opacity 0.15s 0s;
 }
 
 /* ===== Venue Items ===== */
