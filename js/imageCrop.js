@@ -232,6 +232,13 @@ const ImageCrop = {
       this._translateAllData(dx, dy);
     }
 
+    // Redraw SVG connecting lines using the updated cone positions
+    if (typeof App !== 'undefined') {
+      try { App._redrawStartConeConnectingLine(); } catch (e) {}
+      try { App._redrawStartBeamConnectingLine(); } catch (e) {}
+      try { App._redrawFinishConeConnectingLine(); } catch (e) {}
+    }
+
     this._repositionHandles();
     if (typeof App !== 'undefined') App._updateInfo();
   },
@@ -254,6 +261,9 @@ const ImageCrop = {
     }
     if (typeof Cones !== 'undefined') {
       for (const c of Cones.cones) shift(c.lngLat);
+    }
+    if (typeof Arrows !== 'undefined') {
+      for (const a of Arrows.arrows) shift(a.lngLat);
     }
     if (typeof Notes !== 'undefined') {
       for (const n of Notes.notes) shift(n.lngLat);

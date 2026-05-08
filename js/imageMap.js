@@ -512,6 +512,10 @@ const ImageMap = {
     this._lineCanvas.width  = newW;
     this._lineCanvas.height = newH;
 
+    // Update dimensions first so _updatePosition clamps to the new bounds, not the old ones
+    this._imageWidth  = newW;
+    this._imageHeight = newH;
+
     // Translate all marker DOM positions
     if (dx !== 0 || dy !== 0) {
       for (const marker of this._markers) {
@@ -523,9 +527,6 @@ const ImageMap = {
     // Adjust pan offset so the old image origin stays at the same screen position
     this._offsetX += oldLeft * this._scale;
     this._offsetY += oldTop  * this._scale;
-
-    this._imageWidth  = newW;
-    this._imageHeight = newH;
 
     this._applyTransform();
     this._redrawLineCanvas();
