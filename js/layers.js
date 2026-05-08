@@ -258,4 +258,25 @@ const Layers = {
       ImageLayers.renameLayer(id, newLabel);
     }
   },
+
+  /** Return a plain {key: visible} map for all current layers */
+  getVisibility() {
+    const map = {};
+    for (const [key, layer] of Object.entries(this._layers)) {
+      map[key] = layer.visible;
+    }
+    return map;
+  },
+
+  /** Restore layer visibility from a saved {key: visible} map.
+   *  Unknown keys (e.g. dynamic layers not yet created) are ignored. */
+  loadVisibility(map) {
+    if (!map || typeof map !== 'object') return;
+    for (const [key, visible] of Object.entries(map)) {
+      if (!this._layers[key]) continue;
+      this._layers[key].visible = !!visible;
+      this._applyVisibility(key, !!visible);
+    }
+    this._renderPanel();
+  },
 };

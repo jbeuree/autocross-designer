@@ -3656,6 +3656,7 @@ const App = {
     data.startConePair = this._currentStartConePair.slice(); // Include start cone pair
     data.startBeamPair = this._currentStartBeamPair.slice(); // Include start beam pair
     data.finishConePair = this._currentFinishConePair.slice(); // Include finish cone pair
+    data.layerVisibility = Layers.getVisibility();
     data.imageLayers = ImageLayers.getData();
     data.statsOverlay = StatsOverlay.getData();
     data.scaleOverlay = ScaleOverlay.getData();
@@ -3719,6 +3720,9 @@ const App = {
     if (data.imageLayers) ImageLayers.loadData(data.imageLayers);
     if (data.statsOverlay) StatsOverlay.loadData(data.statsOverlay);
     if (data.scaleOverlay) ScaleOverlay.loadData(data.scaleOverlay);
+    // Restore layer visibility after all dynamic layers (imageLayers, extraDrivingLines)
+    // have been created so their entries exist in Layers._layers.
+    if (data.layerVisibility) Layers.loadVisibility(data.layerVisibility);
     if (data.backgroundImage && this.mode === 'image') {
       const img = new Image();
       img.onload = () => {
