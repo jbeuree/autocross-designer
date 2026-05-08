@@ -38,6 +38,7 @@ const App = {
   _extraLineColors: ['#22c55e','#ef4444','#a855f7','#ec4899','#14b8a6','#eab308'],
   _finishConeLineElement: null, // SVG line connecting the finish-cone pair
   _finishConeStart: null,  // first click for finish-cone tool
+  _backgroundDPI: 96,      // DPI of the loaded background image (detected from PNG metadata)
   
   async init() {
     // Check for shared course in URL
@@ -198,6 +199,13 @@ const App = {
     // Initialize the fake map adapter
     this.map = ImageMap;
     ImageMap.init('map', imageSrc);
+
+    // Detect DPI from the background image's PNG metadata (async, best-effort)
+    this._backgroundDPI = 96;
+    fetch(imageSrc)
+      .then(r => r.arrayBuffer())
+      .then(buf => { this._backgroundDPI = this._parsePNGDPI(buf); })
+      .catch(() => {});
 
     ImageMap.on('load', () => {
       this._initModules();
@@ -3089,6 +3097,94 @@ const App = {
     });
   },
 
+  /**
+   * Parse the DPI from a PNG ArrayBuffer by reading the pHYs chunk.
+   * Returns the DPI (pixels per inch) or 96 if not found / not a PNG.
+   */
+  _parsePNGDPI(buffer) {
+    try {
+      const view = new DataView(buffer);
+      const len = buffer.byteLength;
+      if (len < 8 || view.getUint32(0) !== 0x89504E47) return 96;
+      let offset = 8;
+      while (offset + 12 <= len) {
+        const chunkLen = view.getUint32(offset);
+        const type = String.fromCharCode(
+          view.getUint8(offset + 4), view.getUint8(offset + 5),
+          view.getUint8(offset + 6), view.getUint8(offset + 7)
+        );
+        if (type === 'pHYs' && chunkLen >= 9) {
+          const ppuX = view.getUint32(offset + 8);
+          const unit = view.getUint8(offset + 16);
+          if (unit === 1 && ppuX > 0) {
+            return Math.round(ppuX * 0.0254);
+          }
+          break;
+        }
+        if (type === 'IDAT') break;
+        offset += 4 + 4 + chunkLen + 4;
+      }
+    } catch (_) {}
+    return 96;
+  },
+
+  /** CRC-32 used for PNG chunk integrity. */
+  _crc32(bytes) {
+    let crc = 0xFFFFFFFF;
+    for (const b of bytes) {
+      crc ^= b;
+      for (let j = 0; j < 8; j++) {
+        crc = (crc >>> 1) ^ (crc & 1 ? 0xEDB88320 : 0);
+      }
+    }
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  },
+
+  /**
+   * Inject a pHYs chunk carrying the given DPI into a PNG Blob.
+   * Returns a Promise that resolves with a new Blob.
+   */
+  _injectPNGDPI(blob, dpi) {
+    return blob.arrayBuffer().then(buf => {
+      const orig = new Uint8Array(buf);
+      const ppm = Math.round(dpi / 0.0254);
+      const typeBytes = [0x70, 0x48, 0x59, 0x73]; // "pHYs"
+      const data = new Uint8Array(9);
+      const dv = new DataView(data.buffer);
+      dv.setUint32(0, ppm);
+      dv.setUint32(4, ppm);
+      data[8] = 1; // unit = metre
+      const crc = this._crc32([...typeBytes, ...data]);
+      const chunk = new Uint8Array(21);
+      const cv = new DataView(chunk.buffer);
+      cv.setUint32(0, 9);
+      chunk.set(typeBytes, 4);
+      chunk.set(data, 8);
+      cv.setUint32(17, crc);
+
+      // Strip any existing pHYs chunk then reassemble with our new one after IHDR
+      let readOff = 8;
+      const signature = orig.slice(0, 8);
+      let ihdr = null;
+      const rest = [];
+      while (readOff + 12 <= orig.length) {
+        const chunkLen = (orig[readOff] << 24 | orig[readOff+1] << 16 | orig[readOff+2] << 8 | orig[readOff+3]) >>> 0;
+        const type = String.fromCharCode(orig[readOff+4], orig[readOff+5], orig[readOff+6], orig[readOff+7]);
+        const total = 4 + 4 + chunkLen + 4;
+        const slice = orig.slice(readOff, readOff + total);
+        if (type === 'IHDR') { ihdr = slice; }
+        else if (type !== 'pHYs') { rest.push(slice); }
+        readOff += total;
+      }
+      const parts = [signature, ihdr || new Uint8Array(0), chunk, ...rest];
+      const totalLen = parts.reduce((s, p) => s + p.length, 0);
+      const out = new Uint8Array(totalLen);
+      let off = 0;
+      for (const p of parts) { out.set(p, off); off += p.length; }
+      return new Blob([out], { type: 'image/png' });
+    });
+  },
+
   /** Set up print button */
   _setupPrint() {
     const printBtn = document.getElementById('btn-print');
@@ -3097,10 +3193,14 @@ const App = {
     const blackCones = document.getElementById('print-black-cones');
     const confirmBtn = document.getElementById('print-confirm');
     const cancelBtn = document.getElementById('print-cancel');
+    const dpiRow = document.getElementById('print-dpi-row');
+    const dpiInput = document.getElementById('print-dpi');
 
     printBtn.addEventListener('click', () => {
-      // Default: check grid if grid is currently active
       includeGrid.checked = Grid.isActive();
+      // Only show DPI option in image mode
+      if (dpiRow) dpiRow.style.display = this.mode === 'image' ? '' : 'none';
+      if (dpiInput) dpiInput.value = this._backgroundDPI || 96;
       dialog.classList.remove('hidden');
     });
 
@@ -3110,12 +3210,13 @@ const App = {
 
     confirmBtn.addEventListener('click', () => {
       dialog.classList.add('hidden');
-      this._captureImage(includeGrid.checked, blackCones.checked);
+      const targetDPI = this.mode === 'image' ? (parseInt(dpiInput && dpiInput.value) || this._backgroundDPI || 96) : 96;
+      this._captureImage(includeGrid.checked, blackCones.checked, targetDPI);
     });
   },
 
   /** Capture the map + optional grid as a downloadable image */
-  _captureImage(withGrid, blackCones) {
+  _captureImage(withGrid, blackCones, targetDPI = 96) {
     const mapCanvas = this.map.getCanvas();
 
     // In image mode, compute an expanded canvas if image layers extend outside the background.
@@ -3138,8 +3239,11 @@ const App = {
     }
 
     const resultCanvas = document.createElement('canvas');
-    resultCanvas.width = exportW;
-    resultCanvas.height = exportH;
+    // In image mode, scale the output canvas by the DPI ratio so the pixel count
+    // matches the requested DPI relative to the source image's native DPI.
+    const dpiScale = this.mode === 'image' ? (targetDPI / (this._backgroundDPI || 96)) : 1;
+    resultCanvas.width = Math.round(exportW * dpiScale);
+    resultCanvas.height = Math.round(exportH * dpiScale);
     const ctx = resultCanvas.getContext('2d');
 
     const dpr = this.mode === 'image' ? 1 : window.devicePixelRatio;
@@ -3147,6 +3251,7 @@ const App = {
     // Translate all coordinate-based drawing by the expansion offset.
     // In map mode originOffset is always 0 so this is a no-op.
     ctx.save();
+    if (dpiScale !== 1) ctx.scale(dpiScale, dpiScale);
     ctx.translate(originOffsetX, originOffsetY);
 
     // Draw the map (or image in image mode)
@@ -3481,13 +3586,21 @@ const App = {
 
     // Download
     resultCanvas.toBlob((blob) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
       const base = this._sanitizeFileName(this.courseTitle || 'Autocross');
-      a.download = base + '.png';
-      a.click();
-      URL.revokeObjectURL(url);
+      const doDownload = (finalBlob) => {
+        const url = URL.createObjectURL(finalBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = base + '.png';
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+      // Embed the target DPI in the PNG metadata
+      if (this.mode === 'image' && targetDPI) {
+        this._injectPNGDPI(blob, targetDPI).then(doDownload).catch(() => doDownload(blob));
+      } else {
+        doDownload(blob);
+      }
     }, 'image/png');
   },
 
