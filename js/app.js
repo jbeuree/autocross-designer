@@ -19,7 +19,8 @@ const App = {
   _slalomStart: null,     // first click for slalom tool
   _slalomEnd: null,       // second click for slalom tool
   _gateCenter: null,      // first click for gate tool
-  _startConeStart: null,  // first click for start-cone tool
+  _startConeStart: null,  // first cone lngLat for start-cone tool
+  _startConeCone1Id: null, // cone id of the first cone placed during start-cone placement
   _previewLine: null,     // SVG element for rubber-band preview line
   _previewLabel: null,    // distance label element for preview
   _boxSelecting: false,   // box selection state
@@ -29,7 +30,8 @@ const App = {
   _startConeLineElement: null, // SVG line connecting the start-cone pair
   _currentStartBeamPair: [], // IDs of the current start-beam pair [id1, id2]
   _startBeamLineElement: null, // SVG line connecting the start-beam pair
-  _startBeamStart: null,  // first click for start-beam tool
+  _startBeamStart: null,  // first pylon lngLat for start-beam tool
+  _startBeamPylon1Id: null, // cone id of the first pylon placed during start-beam placement
   _leanerStart: null,     // first click for leaner tool
   _pointerStart: null,    // first click state for pointer tool: {lngLat, regularConeId}
   _currentFinishConePair: [], // IDs of the current finish-cone pair [id1, id2]
@@ -38,7 +40,8 @@ const App = {
   // Color palette cycling for extra driving lines (index 0 = Line 2, etc.)
   _extraLineColors: ['#22c55e','#ef4444','#a855f7','#ec4899','#14b8a6','#eab308'],
   _finishConeLineElement: null, // SVG line connecting the finish-cone pair
-  _finishConeStart: null,  // first click for finish-cone tool
+  _finishConeStart: null,  // first cone lngLat for finish-cone tool
+  _finishConeCone1Id: null, // cone id of the first cone placed during finish-cone placement
   _backgroundDPI: 96,      // DPI of the loaded background image (detected from PNG metadata)
   
   async init() {
@@ -1109,8 +1112,6 @@ const App = {
           }
         } catch (e) {}
 
-        try { if (svg._updateDirGraphics) svg._updateDirGraphics(); } catch (e) {}
-
         if (typeof Measurements !== 'undefined') {
           Measurements.updateConePosition(p1Cone.id, p1Cone.lngLat);
           Measurements.updateConePosition(p2Cone.id, p2Cone.lngLat);
@@ -1123,10 +1124,6 @@ const App = {
         document.removeEventListener('mouseup', onMouseUp);
         if (this._onUpdate) this._onUpdate();
         try { this._redrawStartConeConnectingLine(); } catch (ex) {}
-        try {
-          const redrawnSvg = this._startConeLineElement;
-          if (redrawnSvg && redrawnSvg._scheduleDirHide) redrawnSvg._scheduleDirHide();
-        } catch (ex) {}
         this._suppressNextClick = true;
         try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = true; } catch (ex) {}
         setTimeout(() => {
@@ -1145,10 +1142,6 @@ const App = {
         document.removeEventListener('touchend', onTouchEnd);
         if (this._onUpdate) this._onUpdate();
         try { this._redrawStartConeConnectingLine(); } catch (ex) {}
-        try {
-          const redrawnSvg = this._startConeLineElement;
-          if (redrawnSvg && redrawnSvg._scheduleDirHide) redrawnSvg._scheduleDirHide();
-        } catch (ex) {}
         this._suppressNextClick = true;
         try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = true; } catch (ex) {}
         setTimeout(() => {
@@ -1191,225 +1184,6 @@ const App = {
         lineEl.addEventListener('touchstart', startDrag, { passive: false });
       }
 
-      try {
-        let draggingHandle = false;
-        const dirGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        dirGroup.style.display = 'none';
-        dirGroup.style.pointerEvents = 'none';
-
-        const dirLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        dirLine.setAttribute('stroke', '#10b981');
-        dirLine.setAttribute('stroke-width', '2');
-        dirLine.setAttribute('stroke-dasharray', '6,4');
-        dirLine.setAttribute('pointer-events', 'none');
-
-        const dirHandle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        dirHandle.setAttribute('r', '7');
-        dirHandle.setAttribute('fill', '#ffffff');
-        dirHandle.setAttribute('stroke', '#10b981');
-        dirHandle.setAttribute('stroke-width', '2');
-        dirHandle.style.cursor = 'grab';
-        dirHandle.style.pointerEvents = 'auto';
-
-        dirGroup.appendChild(dirLine);
-        dirGroup.appendChild(dirHandle);
-        svg.appendChild(dirGroup);
-
-        const updateDirectionGraphics = () => {
-          try {
-            const ln = svg.querySelector('line');
-            if (!ln) return;
-            const x1 = parseFloat(ln.getAttribute('x1')) || 0;
-            const y1 = parseFloat(ln.getAttribute('y1')) || 0;
-            const x2 = parseFloat(ln.getAttribute('x2')) || 0;
-            const y2 = parseFloat(ln.getAttribute('y2')) || 0;
-            const cx = (x1 + x2) / 2;
-            const cy = (y1 + y2) / 2;
-            const halfX = x1 - cx;
-            const halfY = y1 - cy;
-            const mag = Math.sqrt(halfX * halfX + halfY * halfY) || 20;
-            const pvAngle = Math.atan2(halfY, halfX);
-            const drivingAngle = pvAngle - Math.PI / 2;
-            const len = Math.max(40, mag * 1.5);
-            const hx = cx + Math.cos(drivingAngle) * len;
-            const hy = cy + Math.sin(drivingAngle) * len;
-            dirLine.setAttribute('x1', cx);
-            dirLine.setAttribute('y1', cy);
-            dirLine.setAttribute('x2', hx);
-            dirLine.setAttribute('y2', hy);
-            dirHandle.setAttribute('cx', hx);
-            dirHandle.setAttribute('cy', hy);
-          } catch (e) {}
-        };
-
-        svg._updateDirGraphics = updateDirectionGraphics;
-
-        const HIDE_DELAY = 2000;
-        let dirHideTimer = null;
-        const cancelHide = () => { if (dirHideTimer) { clearTimeout(dirHideTimer); dirHideTimer = null; } };
-        const hideNow = () => { dirGroup.style.display = 'none'; dirGroup.style.pointerEvents = 'none'; svg._dirOverlayVisible = false; };
-        const scheduleHide = (delay = HIDE_DELAY) => {
-          cancelHide();
-          if (!draggingHandle) {
-            dirHideTimer = setTimeout(() => { dirHideTimer = null; if (!draggingHandle) hideNow(); }, delay);
-          }
-        };
-        const showDirection = () => { dirGroup.style.display = 'block'; dirGroup.style.pointerEvents = 'auto'; updateDirectionGraphics(); cancelHide(); svg._dirOverlayVisible = true; };
-        svg._showDirOverlay = showDirection;
-        svg._scheduleDirHide = scheduleHide;
-        svg._dirOverlayVisible = false;
-        const hideDirection = () => { scheduleHide(); };
-
-        const mainLineElForDir = svg.querySelector('line');
-        if (mainLineElForDir) {
-          mainLineElForDir.addEventListener('mouseenter', () => { showDirection(); });
-          mainLineElForDir.addEventListener('mousemove', () => { showDirection(); scheduleHide(); });
-          mainLineElForDir.addEventListener('mouseleave', () => { scheduleHide(); });
-        }
-
-        dirHandle.addEventListener('mouseenter', () => { cancelHide(); showDirection(); });
-        dirHandle.addEventListener('mouseleave', () => { scheduleHide(); });
-
-        let dirStartCenter = null;
-        let dirHalfMag = 0;
-        let dirP1Cone = null;
-        let dirP2Cone = null;
-
-        const onHandleMove = (clientX, clientY) => {
-          if (!dirStartCenter || !dirP1Cone || !dirP2Cone) return;
-          const dx = clientX - dirStartCenter.x;
-          const dy = clientY - dirStartCenter.y;
-          const pointerAngle = Math.atan2(dy, dx);
-          const newHalfAngle = pointerAngle + Math.PI / 2;
-          const newHalfX = Math.cos(newHalfAngle) * dirHalfMag;
-          const newHalfY = Math.sin(newHalfAngle) * dirHalfMag;
-          const newP1 = { x: dirStartCenter.x + newHalfX, y: dirStartCenter.y + newHalfY };
-          const newP2 = { x: dirStartCenter.x - newHalfX, y: dirStartCenter.y - newHalfY };
-
-          const lngLat1 = mapAdapter.unproject ? mapAdapter.unproject(newP1) : this.map.unproject(newP1);
-          const lngLat2 = mapAdapter.unproject ? mapAdapter.unproject(newP2) : this.map.unproject(newP2);
-
-          try {
-            if (dirP1Cone && dirP1Cone.marker && typeof dirP1Cone.marker.setLngLat === 'function') {
-              dirP1Cone.marker.setLngLat(lngLat1);
-              dirP1Cone.lngLat = [lngLat1.lng, lngLat1.lat];
-            }
-            if (dirP2Cone && dirP2Cone.marker && typeof dirP2Cone.marker.setLngLat === 'function') {
-              dirP2Cone.marker.setLngLat(lngLat2);
-              dirP2Cone.lngLat = [lngLat2.lng, lngLat2.lat];
-            }
-          } catch (e) {}
-
-          try {
-            const proj1 = mapAdapter.project ? mapAdapter.project(dirP1Cone.lngLat) : this.map.project(dirP1Cone.lngLat);
-            const proj2 = mapAdapter.project ? mapAdapter.project(dirP2Cone.lngLat) : this.map.project(dirP2Cone.lngLat);
-            const lnMain = svg.querySelector('line');
-            if (lnMain) {
-              lnMain.setAttribute('x1', proj1.x);
-              lnMain.setAttribute('y1', proj1.y);
-              lnMain.setAttribute('x2', proj2.x);
-              lnMain.setAttribute('y2', proj2.y);
-            }
-          } catch (e) {}
-
-          updateDirectionGraphics();
-          if (typeof Measurements !== 'undefined') {
-            Measurements.updateConePosition(dirP1Cone.id, dirP1Cone.lngLat);
-            Measurements.updateConePosition(dirP2Cone.id, dirP2Cone.lngLat);
-          }
-        };
-
-        const onHandleMouseMove = (e) => { e.preventDefault(); onHandleMove(e.clientX, e.clientY); };
-        const onHandleMouseUp = () => {
-          draggingHandle = false;
-          document.removeEventListener('mousemove', onHandleMouseMove);
-          document.removeEventListener('mouseup', onHandleMouseUp);
-          this._redrawStartConeConnectingLine();
-          try {
-            const redrawnSvg = this._startConeLineElement;
-            if (redrawnSvg && redrawnSvg._scheduleDirHide) redrawnSvg._scheduleDirHide();
-          } catch (e) {}
-          try { if (this._updateInfo) this._updateInfo(); } catch (e) {}
-          this._suppressNextClick = true;
-          try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = true; } catch (ex) {}
-          setTimeout(() => {
-            this._suppressNextClick = false;
-            try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = false; } catch (ex) {}
-          }, 300);
-        };
-        const onHandleTouchMove = (e) => {
-          if (!e.touches || e.touches.length === 0) return;
-          e.preventDefault();
-          onHandleMove(e.touches[0].clientX, e.touches[0].clientY);
-        };
-        const onHandleTouchEnd = () => {
-          draggingHandle = false;
-          document.removeEventListener('touchmove', onHandleTouchMove);
-          document.removeEventListener('touchend', onHandleTouchEnd);
-          this._redrawStartConeConnectingLine();
-          try {
-            const redrawnSvg = this._startConeLineElement;
-            if (redrawnSvg && redrawnSvg._scheduleDirHide) redrawnSvg._scheduleDirHide();
-          } catch (ex) {}
-          try { if (this._updateInfo) this._updateInfo(); } catch (ex) {}
-          this._suppressNextClick = true;
-          try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = true; } catch (ex) {}
-          setTimeout(() => {
-            this._suppressNextClick = false;
-            try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = false; } catch (ex) {}
-          }, 300);
-        };
-
-        const startHandleDrag = (e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          if (!this._currentStartConePair || this._currentStartConePair.length !== 2) return;
-          dirP1Cone = Cones.cones.find(c => c.id === this._currentStartConePair[0]);
-          dirP2Cone = Cones.cones.find(c => c.id === this._currentStartConePair[1]);
-          if (!dirP1Cone || !dirP2Cone) return;
-
-          const proj1 = mapAdapter.project ? mapAdapter.project(dirP1Cone.lngLat) : this.map.project(dirP1Cone.lngLat);
-          const proj2 = mapAdapter.project ? mapAdapter.project(dirP2Cone.lngLat) : this.map.project(dirP2Cone.lngLat);
-          dirStartCenter = { x: (proj1.x + proj2.x) / 2, y: (proj1.y + proj2.y) / 2 };
-          const halfX = proj1.x - dirStartCenter.x;
-          const halfY = proj1.y - dirStartCenter.y;
-          dirHalfMag = Math.sqrt(halfX * halfX + halfY * halfY) || 20;
-
-          draggingHandle = true;
-          cancelHide();
-          try { History.push(); } catch (ex) {}
-
-          if (e.type === 'mousedown') {
-            document.addEventListener('mousemove', onHandleMouseMove);
-            document.addEventListener('mouseup', onHandleMouseUp);
-          } else if (e.type === 'touchstart') {
-            document.addEventListener('touchmove', onHandleTouchMove, { passive: false });
-            document.addEventListener('touchend', onHandleTouchEnd);
-          }
-        };
-
-        dirHandle.addEventListener('mousedown', startHandleDrag);
-        dirHandle.addEventListener('touchstart', startHandleDrag, { passive: false });
-
-        const dirCleanup = () => {
-          try {
-            const ln = svg.querySelector('line');
-            if (ln) {
-              ln.removeEventListener('mouseenter', showDirection);
-              ln.removeEventListener('mousemove', showDirection);
-              ln.removeEventListener('mouseleave', hideDirection);
-            }
-          } catch (e) {}
-          try { dirHandle.removeEventListener('mousedown', startHandleDrag); } catch (e) {}
-          try { dirHandle.removeEventListener('touchstart', startHandleDrag); } catch (e) {}
-          try { dirHandle.removeEventListener('mouseenter', cancelHide); } catch (e) {}
-          try { dirHandle.removeEventListener('mouseleave', scheduleHide); } catch (e) {}
-          try { cancelHide(); } catch (e) {}
-        };
-
-        svg._startConeDirCleanup = dirCleanup;
-      } catch (e) {}
-
       svg._startConeDragCleanup = () => {
         try { if (lineEl) lineEl.removeEventListener('mousedown', startDrag); } catch (e) {}
         try { if (lineEl) lineEl.removeEventListener('touchstart', startDrag); } catch (e) {}
@@ -1417,8 +1191,6 @@ const App = {
         try { document.removeEventListener('mouseup', onMouseUp); } catch (e) {}
         try { document.removeEventListener('touchmove', onTouchMove); } catch (e) {}
         try { document.removeEventListener('touchend', onTouchEnd); } catch (e) {}
-        try { if (svg._startConeDirCleanup) svg._startConeDirCleanup(); } catch (e) {}
-        try { svg._startConeDirCleanup = null; } catch (e) {}
       };
     } catch (e) {}
 
@@ -1511,11 +1283,6 @@ const App = {
           }
         } catch (e) {}
 
-        // Keep direction overlay in sync while dragging the whole beam
-        try { if (svg._updateDirGraphics) svg._updateDirGraphics(); } catch (e) {}
-
-        // Update rotations and any dependent visuals
-        this._updateStartBeamPairRotation();
         if (typeof Measurements !== 'undefined') {
           Measurements.updateConePosition(p1Cone.id, p1Cone.lngLat);
           Measurements.updateConePosition(p2Cone.id, p2Cone.lngLat);
@@ -1528,12 +1295,7 @@ const App = {
         document.removeEventListener('mouseup', onMouseUp);
         // finalize
         if (this._onUpdate) this._onUpdate();
-        // Ensure the start-beam SVG is rebuilt and its overlay restored (like finish-beam)
         try { this._redrawStartBeamConnectingLine(); } catch (ex) {}
-        try {
-          const redrawnSvg = this._startBeamLineElement;
-          if (redrawnSvg && redrawnSvg._scheduleDirHide) redrawnSvg._scheduleDirHide();
-        } catch (ex) {}
         // Suppress the synthetic click after drag so a new start-beam isn't created.
         this._suppressNextClick = true;
         try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = true; } catch (ex) {}
@@ -1546,7 +1308,6 @@ const App = {
         document.removeEventListener('touchend', onTouchEnd);
         if (this._onUpdate) this._onUpdate();
         try { this._redrawStartBeamConnectingLine(); } catch (ex) {}
-        try { const redrawnSvg = this._startBeamLineElement; if (redrawnSvg && redrawnSvg._scheduleDirHide) redrawnSvg._scheduleDirHide(); } catch (ex) {}
         this._suppressNextClick = true;
         try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = true; } catch (ex) {}
         setTimeout(() => { this._suppressNextClick = false; try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = false; } catch (ex) {} }, 300);
@@ -1588,213 +1349,6 @@ const App = {
         lineEl.addEventListener('touchstart', startDrag, { passive: false });
       }
 
-      // Direction overlay (hidden until hover) and rotation handle for picking direction
-      try {
-        let draggingHandle = false;
-        const dirGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        dirGroup.style.display = 'none';
-        dirGroup.style.pointerEvents = 'none';
-
-        const dirLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        dirLine.setAttribute('stroke', '#10b981');
-        dirLine.setAttribute('stroke-width', '2');
-        dirLine.setAttribute('stroke-dasharray', '6,4');
-        dirLine.setAttribute('pointer-events', 'none');
-
-        const dirHandle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        dirHandle.setAttribute('r', '7');
-        dirHandle.setAttribute('fill', '#ffffff');
-        dirHandle.setAttribute('stroke', '#10b981');
-        dirHandle.setAttribute('stroke-width', '2');
-        dirHandle.style.cursor = 'grab';
-        dirHandle.style.pointerEvents = 'auto';
-
-        dirGroup.appendChild(dirLine);
-        dirGroup.appendChild(dirHandle);
-        svg.appendChild(dirGroup);
-
-        const updateDirectionGraphics = () => {
-          try {
-            const ln = svg.querySelector('line');
-            if (!ln) return;
-            const x1 = parseFloat(ln.getAttribute('x1')) || 0;
-            const y1 = parseFloat(ln.getAttribute('y1')) || 0;
-            const x2 = parseFloat(ln.getAttribute('x2')) || 0;
-            const y2 = parseFloat(ln.getAttribute('y2')) || 0;
-            const cx = (x1 + x2) / 2;
-            const cy = (y1 + y2) / 2;
-            const halfX = x1 - cx;
-            const halfY = y1 - cy;
-            const mag = Math.sqrt(halfX * halfX + halfY * halfY) || 20;
-            const pvAngle = Math.atan2(halfY, halfX);
-            const drivingAngle = pvAngle - Math.PI / 2;
-            const len = Math.max(40, mag * 1.5);
-            const hx = cx + Math.cos(drivingAngle) * len;
-            const hy = cy + Math.sin(drivingAngle) * len;
-            dirLine.setAttribute('x1', cx);
-            dirLine.setAttribute('y1', cy);
-            dirLine.setAttribute('x2', hx);
-            dirLine.setAttribute('y2', hy);
-            dirHandle.setAttribute('cx', hx);
-            dirHandle.setAttribute('cy', hy);
-          } catch (e) {}
-        };
-
-        // Expose so onMove (beam-drag) can keep the overlay in sync
-        svg._updateDirGraphics = updateDirectionGraphics;
-
-        const HIDE_DELAY = 2000;
-        let dirHideTimer = null;
-        const cancelHide = () => { if (dirHideTimer) { clearTimeout(dirHideTimer); dirHideTimer = null; } };
-        const hideNow = () => { dirGroup.style.display = 'none'; dirGroup.style.pointerEvents = 'none'; svg._dirOverlayVisible = false; };
-        const scheduleHide = (delay = HIDE_DELAY) => {
-          cancelHide();
-          if (!draggingHandle) {
-            dirHideTimer = setTimeout(() => { dirHideTimer = null; if (!draggingHandle) hideNow(); }, delay);
-          }
-        };
-        const showDirection = () => { dirGroup.style.display = 'block'; dirGroup.style.pointerEvents = 'auto'; updateDirectionGraphics(); cancelHide(); svg._dirOverlayVisible = true; };
-        // Expose so _redrawStartBeamConnectingLine can restore visibility after SVG recreation
-        svg._showDirOverlay = showDirection;
-        svg._scheduleDirHide = scheduleHide;
-        svg._dirOverlayVisible = false;
-        const hideDirection = () => { scheduleHide(); };
-
-        const mainLineElForDir = svg.querySelector('line');
-        if (mainLineElForDir) {
-          mainLineElForDir.addEventListener('mouseenter', (e) => { showDirection(); });
-          mainLineElForDir.addEventListener('mousemove', (e) => { showDirection(); scheduleHide(); });
-          mainLineElForDir.addEventListener('mouseleave', (e) => { scheduleHide(); });
-        }
-
-        // Keep the handle from disappearing while hovered or dragged
-        dirHandle.addEventListener('mouseenter', (e) => { cancelHide(); showDirection(); });
-        dirHandle.addEventListener('mouseleave', (e) => { scheduleHide(); });
-
-        // Rotation handle drag
-        let dirStartCenter = null;
-        let dirHalfMag = 0;
-        let dirP1Cone = null, dirP2Cone = null;
-
-        const onHandleMove = (clientX, clientY) => {
-          if (!dirStartCenter || !dirP1Cone || !dirP2Cone) return;
-          const dx = clientX - dirStartCenter.x;
-          const dy = clientY - dirStartCenter.y;
-          const pointerAngle = Math.atan2(dy, dx);
-          const newHalfAngle = pointerAngle + Math.PI / 2;
-          const newHalfX = Math.cos(newHalfAngle) * dirHalfMag;
-          const newHalfY = Math.sin(newHalfAngle) * dirHalfMag;
-          const newP1 = { x: dirStartCenter.x + newHalfX, y: dirStartCenter.y + newHalfY };
-          const newP2 = { x: dirStartCenter.x - newHalfX, y: dirStartCenter.y - newHalfY };
-
-          // Convert screen coords back to lng/lat (or image pixel coords)
-          const lngLat1 = mapAdapter.unproject ? mapAdapter.unproject(newP1) : this.map.unproject(newP1);
-          const lngLat2 = mapAdapter.unproject ? mapAdapter.unproject(newP2) : this.map.unproject(newP2);
-
-          try {
-            if (dirP1Cone && dirP1Cone.marker && typeof dirP1Cone.marker.setLngLat === 'function') {
-              dirP1Cone.marker.setLngLat(lngLat1);
-              dirP1Cone.lngLat = [lngLat1.lng, lngLat1.lat];
-            }
-            if (dirP2Cone && dirP2Cone.marker && typeof dirP2Cone.marker.setLngLat === 'function') {
-              dirP2Cone.marker.setLngLat(lngLat2);
-              dirP2Cone.lngLat = [lngLat2.lng, lngLat2.lat];
-            }
-          } catch (e) {}
-
-          // Update main line coordinates (projected)
-          try {
-            const proj1 = mapAdapter.project ? mapAdapter.project(dirP1Cone.lngLat) : this.map.project(dirP1Cone.lngLat);
-            const proj2 = mapAdapter.project ? mapAdapter.project(dirP2Cone.lngLat) : this.map.project(dirP2Cone.lngLat);
-            const lnMain = svg.querySelector('line');
-            if (lnMain) {
-              lnMain.setAttribute('x1', proj1.x);
-              lnMain.setAttribute('y1', proj1.y);
-              lnMain.setAttribute('x2', proj2.x);
-              lnMain.setAttribute('y2', proj2.y);
-            }
-          } catch (e) {}
-
-          updateDirectionGraphics();
-          this._updateStartBeamPairRotation();
-          if (typeof Measurements !== 'undefined') {
-            Measurements.updateConePosition(dirP1Cone.id, dirP1Cone.lngLat);
-            Measurements.updateConePosition(dirP2Cone.id, dirP2Cone.lngLat);
-          }
-        };
-
-        const onHandleMouseMove = (e) => { e.preventDefault(); onHandleMove(e.clientX, e.clientY); };
-        const onHandleMouseUp = (e) => {
-          draggingHandle = false;
-          document.removeEventListener('mousemove', onHandleMouseMove);
-          document.removeEventListener('mouseup', onHandleMouseUp);
-          // Rebuild the beam SVG from the rotated cone positions so the line reliably returns
-          // even if the live-drag overlay got out of sync during rotation.
-          this._redrawStartBeamConnectingLine();
-          try {
-            const redrawnSvg = this._startBeamLineElement;
-            if (redrawnSvg && redrawnSvg._scheduleDirHide) redrawnSvg._scheduleDirHide();
-          } catch (e) {}
-          try { if (this._updateInfo) this._updateInfo(); } catch (e) {}
-          this._suppressNextClick = true;
-          setTimeout(() => { this._suppressNextClick = false; }, 300);
-        };
-        const onHandleTouchMove = (e) => { if (!e.touches || e.touches.length === 0) return; e.preventDefault(); onHandleMove(e.touches[0].clientX, e.touches[0].clientY); };
-        const onHandleTouchEnd = (e) => { draggingHandle = false; document.removeEventListener('touchmove', onHandleTouchMove); document.removeEventListener('touchend', onHandleTouchEnd); this._redrawStartBeamConnectingLine(); try { const redrawnSvg = this._startBeamLineElement; if (redrawnSvg && redrawnSvg._scheduleDirHide) redrawnSvg._scheduleDirHide(); } catch (ex) {} try { if (this._updateInfo) this._updateInfo(); } catch (ex) {} this._suppressNextClick = true; setTimeout(() => { this._suppressNextClick = false; }, 300); };
-
-        const startHandleDrag = (e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          // Identify cones and compute center + half magnitude
-          if (!this._currentStartBeamPair || this._currentStartBeamPair.length !== 2) return;
-          dirP1Cone = Cones.cones.find(c => c.id === this._currentStartBeamPair[0]);
-          dirP2Cone = Cones.cones.find(c => c.id === this._currentStartBeamPair[1]);
-          if (!dirP1Cone || !dirP2Cone) return;
-
-          const proj1 = mapAdapter.project ? mapAdapter.project(dirP1Cone.lngLat) : this.map.project(dirP1Cone.lngLat);
-          const proj2 = mapAdapter.project ? mapAdapter.project(dirP2Cone.lngLat) : this.map.project(dirP2Cone.lngLat);
-          dirStartCenter = { x: (proj1.x + proj2.x) / 2, y: (proj1.y + proj2.y) / 2 };
-          const halfX = proj1.x - dirStartCenter.x;
-          const halfY = proj1.y - dirStartCenter.y;
-          dirHalfMag = Math.sqrt(halfX * halfX + halfY * halfY) || 20;
-
-          draggingHandle = true;
-          cancelHide();
-          try { History.push(); } catch (ex) {}
-
-          if (e.type === 'mousedown') {
-            document.addEventListener('mousemove', onHandleMouseMove);
-            document.addEventListener('mouseup', onHandleMouseUp);
-          } else if (e.type === 'touchstart') {
-            document.addEventListener('touchmove', onHandleTouchMove, { passive: false });
-            document.addEventListener('touchend', onHandleTouchEnd);
-          }
-        };
-
-        dirHandle.addEventListener('mousedown', startHandleDrag);
-        dirHandle.addEventListener('touchstart', startHandleDrag, { passive: false });
-
-        // include direction cleanup in main cleanup
-        const dirCleanup = () => {
-          try {
-            const ln = svg.querySelector('line');
-            if (ln) {
-              ln.removeEventListener('mouseenter', showDirection);
-              ln.removeEventListener('mousemove', showDirection);
-              ln.removeEventListener('mouseleave', hideDirection);
-            }
-          } catch (e) {}
-          try { dirHandle.removeEventListener('mousedown', startHandleDrag); } catch (e) {}
-          try { dirHandle.removeEventListener('touchstart', startHandleDrag); } catch (e) {}
-          try { dirHandle.removeEventListener('mouseenter', cancelHide); } catch (e) {}
-          try { dirHandle.removeEventListener('mouseleave', scheduleHide); } catch (e) {}
-          try { cancelHide(); } catch (e) {}
-        };
-
-        // attach to svg so main cleanup can call it
-        svg._startBeamDirCleanup = dirCleanup;
-      } catch (e) {}
-
       // Provide a cleanup function in case the SVG is removed/replaced
       svg._startBeamDragCleanup = () => {
         try { if (lineEl) lineEl.removeEventListener('mousedown', startDrag); } catch (e) {}
@@ -1803,8 +1357,6 @@ const App = {
         try { document.removeEventListener('mouseup', onMouseUp); } catch (e) {}
         try { document.removeEventListener('touchmove', onTouchMove); } catch (e) {}
         try { document.removeEventListener('touchend', onTouchEnd); } catch (e) {}
-        try { if (svg._startBeamDirCleanup) svg._startBeamDirCleanup(); } catch (e) {}
-        try { svg._startBeamDirCleanup = null; } catch (e) {}
       };
     } catch (e) {}
   },
@@ -1826,13 +1378,7 @@ const App = {
       const pylon1 = Cones.cones.find(c => c.id === this._currentStartBeamPair[0]);
       const pylon2 = Cones.cones.find(c => c.id === this._currentStartBeamPair[1]);
       if (pylon1 && pylon2) {
-        // Capture direction overlay visibility before destroying the old SVG
-        const wasDirVisible = this._startBeamLineElement && this._startBeamLineElement._dirOverlayVisible;
         this._drawStartBeamConnectingLine(pylon1.lngLat, pylon2.lngLat);
-        // Restore direction overlay on the new SVG if it was visible before
-        if (wasDirVisible) {
-          try { if (this._startBeamLineElement && this._startBeamLineElement._showDirOverlay) this._startBeamLineElement._showDirOverlay(); } catch (e) {}
-        }
       }
     }
   },
@@ -1913,11 +1459,6 @@ const App = {
           }
         } catch (e) {}
 
-        // Keep direction overlay in sync while dragging the whole line
-        try { if (svg._updateDirGraphics) svg._updateDirGraphics(); } catch (e) {}
-
-        // Update rotations and any dependent visuals
-        this._updateFinishConePairRotation();
         if (typeof Measurements !== 'undefined') {
           Measurements.updateConePosition(p1Cone.id, p1Cone.lngLat);
           Measurements.updateConePosition(p2Cone.id, p2Cone.lngLat);
@@ -1930,12 +1471,7 @@ const App = {
         document.removeEventListener('mouseup', onMouseUp);
         // finalize
         if (this._onUpdate) this._onUpdate();
-        // Rebuild the finish line SVG from the dragged cone positions so the line reliably returns
         try { this._redrawFinishConeConnectingLine(); } catch (ex) {}
-        try {
-          const redrawnSvg = this._finishConeLineElement;
-          if (redrawnSvg && redrawnSvg._scheduleDirHide) redrawnSvg._scheduleDirHide();
-        } catch (ex) {}
         // Suppress the synthetic click after drag so a new finish-beam isn't created.
         this._suppressNextClick = true;
         try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = true; } catch (ex) {}
@@ -1948,7 +1484,6 @@ const App = {
         document.removeEventListener('touchend', onTouchEnd);
         if (this._onUpdate) this._onUpdate();
         try { this._redrawFinishConeConnectingLine(); } catch (ex) {}
-        try { const redrawnSvg = this._finishConeLineElement; if (redrawnSvg && redrawnSvg._scheduleDirHide) redrawnSvg._scheduleDirHide(); } catch (ex) {}
         this._suppressNextClick = true;
         try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = true; } catch (ex) {}
         setTimeout(() => { this._suppressNextClick = false; try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = false; } catch (ex) {} }, 300);
@@ -1990,223 +1525,6 @@ const App = {
         lineEl.addEventListener('touchstart', startDrag, { passive: false });
       }
 
-      // Direction overlay (hidden until hover) and rotation handle for picking direction
-      try {
-        let draggingHandle = false;
-        const dirGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        dirGroup.style.display = 'none';
-        dirGroup.style.pointerEvents = 'none';
-
-        const dirLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        dirLine.setAttribute('stroke', '#10b981');
-        dirLine.setAttribute('stroke-width', '2');
-        dirLine.setAttribute('stroke-dasharray', '6,4');
-        dirLine.setAttribute('pointer-events', 'none');
-
-        const dirHandle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        dirHandle.setAttribute('r', '7');
-        dirHandle.setAttribute('fill', '#ffffff');
-        dirHandle.setAttribute('stroke', '#10b981');
-        dirHandle.setAttribute('stroke-width', '2');
-        dirHandle.style.cursor = 'grab';
-        dirHandle.style.pointerEvents = 'auto';
-
-        dirGroup.appendChild(dirLine);
-        dirGroup.appendChild(dirHandle);
-        svg.appendChild(dirGroup);
-
-        const updateDirectionGraphics = () => {
-          try {
-            const ln = svg.querySelector('line');
-            if (!ln) return;
-            const x1 = parseFloat(ln.getAttribute('x1')) || 0;
-            const y1 = parseFloat(ln.getAttribute('y1')) || 0;
-            const x2 = parseFloat(ln.getAttribute('x2')) || 0;
-            const y2 = parseFloat(ln.getAttribute('y2')) || 0;
-            const cx = (x1 + x2) / 2;
-            const cy = (y1 + y2) / 2;
-            const halfX = x1 - cx;
-            const halfY = y1 - cy;
-            const mag = Math.sqrt(halfX * halfX + halfY * halfY) || 20;
-            const pvAngle = Math.atan2(halfY, halfX);
-            const drivingAngle = pvAngle - Math.PI / 2;
-            const len = Math.max(40, mag * 1.5);
-            const hx = cx + Math.cos(drivingAngle) * len;
-            const hy = cy + Math.sin(drivingAngle) * len;
-            dirLine.setAttribute('x1', cx);
-            dirLine.setAttribute('y1', cy);
-            dirLine.setAttribute('x2', hx);
-            dirLine.setAttribute('y2', hy);
-            dirHandle.setAttribute('cx', hx);
-            dirHandle.setAttribute('cy', hy);
-          } catch (e) {}
-        };
-
-        // Expose so onMove (line-drag) can keep the overlay in sync
-        svg._updateDirGraphics = updateDirectionGraphics;
-
-        const HIDE_DELAY = 2000;
-        let dirHideTimer = null;
-        const cancelHide = () => { if (dirHideTimer) { clearTimeout(dirHideTimer); dirHideTimer = null; } };
-        const hideNow = () => { dirGroup.style.display = 'none'; dirGroup.style.pointerEvents = 'none'; svg._dirOverlayVisible = false; };
-        const scheduleHide = (delay = HIDE_DELAY) => {
-          cancelHide();
-          if (!draggingHandle) {
-            dirHideTimer = setTimeout(() => { dirHideTimer = null; if (!draggingHandle) hideNow(); }, delay);
-          }
-        };
-        const showDirection = () => { dirGroup.style.display = 'block'; dirGroup.style.pointerEvents = 'auto'; updateDirectionGraphics(); cancelHide(); svg._dirOverlayVisible = true; };
-        // Expose so _redrawFinishConeConnectingLine can restore visibility after SVG recreation
-        svg._showDirOverlay = showDirection;
-        svg._scheduleDirHide = scheduleHide;
-        svg._dirOverlayVisible = false;
-        const hideDirection = () => { scheduleHide(); };
-
-        const mainLineElForDir = svg.querySelector('line');
-        if (mainLineElForDir) {
-          mainLineElForDir.addEventListener('mouseenter', (e) => { showDirection(); });
-          mainLineElForDir.addEventListener('mousemove', (e) => { showDirection(); scheduleHide(); });
-          mainLineElForDir.addEventListener('mouseleave', (e) => { scheduleHide(); });
-        }
-
-        // Keep the handle from disappearing while hovered or dragged
-        dirHandle.addEventListener('mouseenter', (e) => { cancelHide(); showDirection(); });
-        dirHandle.addEventListener('mouseleave', (e) => { scheduleHide(); });
-
-        // Rotation handle drag
-        let dirStartCenter = null;
-        let dirHalfMag = 0;
-        let dirP1Cone = null, dirP2Cone = null;
-
-        const onHandleMove = (clientX, clientY) => {
-          if (!dirStartCenter || !dirP1Cone || !dirP2Cone) return;
-          const dx = clientX - dirStartCenter.x;
-          const dy = clientY - dirStartCenter.y;
-          const pointerAngle = Math.atan2(dy, dx);
-          const newHalfAngle = pointerAngle + Math.PI / 2;
-          const newHalfX = Math.cos(newHalfAngle) * dirHalfMag;
-          const newHalfY = Math.sin(newHalfAngle) * dirHalfMag;
-          const newP1 = { x: dirStartCenter.x + newHalfX, y: dirStartCenter.y + newHalfY };
-          const newP2 = { x: dirStartCenter.x - newHalfX, y: dirStartCenter.y - newHalfY };
-
-          // Convert screen coords back to lng/lat (or image pixel coords)
-          const lngLat1 = mapAdapter.unproject ? mapAdapter.unproject(newP1) : this.map.unproject(newP1);
-          const lngLat2 = mapAdapter.unproject ? mapAdapter.unproject(newP2) : this.map.unproject(newP2);
-
-          try {
-            if (dirP1Cone && dirP1Cone.marker && typeof dirP1Cone.marker.setLngLat === 'function') {
-              dirP1Cone.marker.setLngLat(lngLat1);
-              dirP1Cone.lngLat = [lngLat1.lng, lngLat1.lat];
-            }
-            if (dirP2Cone && dirP2Cone.marker && typeof dirP2Cone.marker.setLngLat === 'function') {
-              dirP2Cone.marker.setLngLat(lngLat2);
-              dirP2Cone.lngLat = [lngLat2.lng, lngLat2.lat];
-            }
-          } catch (e) {}
-
-          // Update main line coordinates (projected)
-          try {
-            const proj1 = mapAdapter.project ? mapAdapter.project(dirP1Cone.lngLat) : this.map.project(dirP1Cone.lngLat);
-            const proj2 = mapAdapter.project ? mapAdapter.project(dirP2Cone.lngLat) : this.map.project(dirP2Cone.lngLat);
-            const lnMain = svg.querySelector('line');
-            if (lnMain) {
-              lnMain.setAttribute('x1', proj1.x);
-              lnMain.setAttribute('y1', proj1.y);
-              lnMain.setAttribute('x2', proj2.x);
-              lnMain.setAttribute('y2', proj2.y);
-            }
-          } catch (e) {}
-
-          updateDirectionGraphics();
-          this._updateFinishConePairRotation();
-          if (typeof Measurements !== 'undefined') {
-            Measurements.updateConePosition(dirP1Cone.id, dirP1Cone.lngLat);
-            Measurements.updateConePosition(dirP2Cone.id, dirP2Cone.lngLat);
-          }
-        };
-
-        const onHandleMouseMove = (e) => { e.preventDefault(); onHandleMove(e.clientX, e.clientY); };
-        const onHandleMouseUp = (e) => {
-          draggingHandle = false;
-          document.removeEventListener('mousemove', onHandleMouseMove);
-          document.removeEventListener('mouseup', onHandleMouseUp);
-          // Rebuild the finish line SVG from the rotated cone positions so the line reliably returns
-          try { this._redrawFinishConeConnectingLine(); } catch (e) {}
-          try {
-            const redrawnSvg = this._finishConeLineElement;
-            if (redrawnSvg && redrawnSvg._scheduleDirHide) redrawnSvg._scheduleDirHide();
-          } catch (e) {}
-          try { if (this._updateInfo) this._updateInfo(); } catch (e) {}
-          this._suppressNextClick = true;
-          try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = true; } catch (ex) {}
-          setTimeout(() => { this._suppressNextClick = false; try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = false; } catch (ex) {} }, 300);
-        };
-        const onHandleTouchMove = (e) => { if (!e.touches || e.touches.length === 0) return; e.preventDefault(); onHandleMove(e.touches[0].clientX, e.touches[0].clientY); };
-        const onHandleTouchEnd = (e) => {
-          draggingHandle = false;
-          document.removeEventListener('touchmove', onHandleTouchMove);
-          document.removeEventListener('touchend', onHandleTouchEnd);
-          try { this._redrawFinishConeConnectingLine(); } catch (ex) {}
-          try { const redrawnSvg = this._finishConeLineElement; if (redrawnSvg && redrawnSvg._scheduleDirHide) redrawnSvg._scheduleDirHide(); } catch (ex) {}
-          try { if (this._updateInfo) this._updateInfo(); } catch (ex) {}
-          this._suppressNextClick = true;
-          try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = true; } catch (ex) {}
-          setTimeout(() => { this._suppressNextClick = false; try { if (mapAdapter && typeof mapAdapter._suppressNextClick !== 'undefined') mapAdapter._suppressNextClick = false; } catch (ex) {} }, 300);
-        };
-
-        const startHandleDrag = (e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          // Identify cones and compute center + half magnitude
-          if (!this._currentFinishConePair || this._currentFinishConePair.length !== 2) return;
-          dirP1Cone = Cones.cones.find(c => c.id === this._currentFinishConePair[0]);
-          dirP2Cone = Cones.cones.find(c => c.id === this._currentFinishConePair[1]);
-          if (!dirP1Cone || !dirP2Cone) return;
-
-          const proj1 = mapAdapter.project ? mapAdapter.project(dirP1Cone.lngLat) : this.map.project(dirP1Cone.lngLat);
-          const proj2 = mapAdapter.project ? mapAdapter.project(dirP2Cone.lngLat) : this.map.project(dirP2Cone.lngLat);
-          dirStartCenter = { x: (proj1.x + proj2.x) / 2, y: (proj1.y + proj2.y) / 2 };
-          const halfX = proj1.x - dirStartCenter.x;
-          const halfY = proj1.y - dirStartCenter.y;
-          dirHalfMag = Math.sqrt(halfX * halfX + halfY * halfY) || 20;
-
-          draggingHandle = true;
-          cancelHide();
-          try { History.push(); } catch (ex) {}
-
-          if (e.type === 'mousedown') {
-            document.addEventListener('mousemove', onHandleMouseMove);
-            document.addEventListener('mouseup', onHandleMouseUp);
-          } else if (e.type === 'touchstart') {
-            document.addEventListener('touchmove', onHandleTouchMove, { passive: false });
-            document.addEventListener('touchend', onHandleTouchEnd);
-          }
-        };
-
-        dirHandle.addEventListener('mousedown', startHandleDrag);
-        dirHandle.addEventListener('touchstart', startHandleDrag, { passive: false });
-
-        // include direction cleanup in main cleanup
-        const dirCleanup = () => {
-          try {
-            const ln = svg.querySelector('line');
-            if (ln) {
-              ln.removeEventListener('mouseenter', showDirection);
-              ln.removeEventListener('mousemove', showDirection);
-              ln.removeEventListener('mouseleave', hideDirection);
-            }
-          } catch (e) {}
-          try { dirHandle.removeEventListener('mousedown', startHandleDrag); } catch (e) {}
-          try { dirHandle.removeEventListener('touchstart', startHandleDrag); } catch (e) {}
-          try { dirHandle.removeEventListener('mouseenter', cancelHide); } catch (e) {}
-          try { dirHandle.removeEventListener('mouseleave', scheduleHide); } catch (e) {}
-          try { cancelHide(); } catch (e) {}
-        };
-
-        // attach to svg so main cleanup can call it
-        svg._finishConeDirCleanup = dirCleanup;
-      } catch (e) {}
-
       // Provide a cleanup function in case the SVG is removed/replaced
       svg._finishConeDragCleanup = () => {
         try { if (lineEl) lineEl.removeEventListener('mousedown', startDrag); } catch (e) {}
@@ -2215,8 +1533,6 @@ const App = {
         try { document.removeEventListener('mouseup', onMouseUp); } catch (e) {}
         try { document.removeEventListener('touchmove', onTouchMove); } catch (e) {}
         try { document.removeEventListener('touchend', onTouchEnd); } catch (e) {}
-        try { if (svg._finishConeDirCleanup) svg._finishConeDirCleanup(); } catch (e) {}
-        try { svg._finishConeDirCleanup = null; } catch (e) {}
       };
     } catch (e) {}
   },
@@ -2235,12 +1551,7 @@ const App = {
       const cone1 = Cones.cones.find(c => c.id === this._currentFinishConePair[0]);
       const cone2 = Cones.cones.find(c => c.id === this._currentFinishConePair[1]);
       if (cone1 && cone2) {
-        // Preserve direction-overlay visibility across redraws
-        const wasDirVisible = this._finishConeLineElement && this._finishConeLineElement._dirOverlayVisible;
         this._drawFinishConeConnectingLine(cone1.lngLat, cone2.lngLat);
-        if (wasDirVisible) {
-          try { if (this._finishConeLineElement && this._finishConeLineElement._showDirOverlay) this._finishConeLineElement._showDirOverlay(); } catch (e) {}
-        }
       }
     }
   },
@@ -2251,11 +1562,7 @@ const App = {
       const cone1 = Cones.cones.find(c => c.id === this._currentStartConePair[0]);
       const cone2 = Cones.cones.find(c => c.id === this._currentStartConePair[1]);
       if (cone1 && cone2) {
-        const wasDirVisible = this._startConeLineElement && this._startConeLineElement._dirOverlayVisible;
         this._drawStartConeConnectingLine(cone1.lngLat, cone2.lngLat);
-        if (wasDirVisible) {
-          try { if (this._startConeLineElement && this._startConeLineElement._showDirOverlay) this._startConeLineElement._showDirOverlay(); } catch (e) {}
-        }
       }
     }
   },
@@ -2438,7 +1745,7 @@ const App = {
 
   // ===== Start-Beam Tool (Two-Click) =====
 
-  /** Handle start-beam click — first click sets start, second click sets direction and places pair */
+  /** Handle start-beam click — first click places pylon 1, second click places pylon 2 */
   _handleStartBeamClick(lngLat) {
     if (!this._startBeamStart) {
       // If there's an existing start-beam pair and the user clicked near its center,
@@ -2472,9 +1779,8 @@ const App = {
                 try { p.marker.setLngLat({ lng: newLng, lat: newLat }); } catch (e) {}
                 p.lngLat = [newLng, newLat];
               });
-              // Redraw connecting line and update rotations
+              // Redraw connecting line
               this._drawStartBeamConnectingLine(p1.lngLat, p2.lngLat);
-              this._updateStartBeamPairRotation();
               if (typeof Measurements !== 'undefined') {
                 Measurements.updateConePosition(p1.id, p1.lngLat);
                 Measurements.updateConePosition(p2.id, p2.lngLat);
@@ -2486,243 +1792,103 @@ const App = {
         }
       }
 
-      this._startBeamStart = lngLat;
-      this._showToast('Click to set driving direction for the start beam', 'info');
-    } else {
-      const center = this._startBeamStart;
-      this._startBeamStart = null;
-      this._hidePreviewLine();
-
+      // First click: place the first pylon immediately at the clicked position.
       History.push();
 
-      // Remove previous start-beam pair before placing new one
+      // Remove previous start-beam pair before starting a new one
       for (const id of this._currentStartBeamPair) {
         Cones.remove(id);
       }
       this._currentStartBeamPair = [];
 
-      // Calculate angle from center to second click (driving direction)
-      // Start beam width is 50% larger than start-cone width
-      const startConeWidth = parseFloat(document.getElementById('start-cone-width-input').value) || 20;
-      const startBeamWidth = startConeWidth * 1.5;
-      const halfWidth = startBeamWidth / 2;
+      const pylon1 = Cones.place('start-beam', lngLat, [lngLat.lng, lngLat.lat]);
+      this._startBeamStart = lngLat;
+      this._startBeamPylon1Id = pylon1.id;
+      this._showToast('Click to place the other side of the start beam', 'info');
+    } else {
+      // Second click: place the second pylon at the clicked position.
+      const pylon1Id = this._startBeamPylon1Id;
+      this._startBeamStart = null;
+      this._startBeamPylon1Id = null;
+      this._hidePreviewLine();
 
-      if (this.mode === 'image') {
-        const scale = ImageMap.hasScale() ? ImageMap.getScale() : 1;
-        const offsetPx = halfWidth / scale;
-        // Angle from center to direction click
-        const dx = lngLat.lng - center.lng;
-        const dy = lngLat.lat - center.lat;
-        const angle = Math.atan2(dy, dx);
-        // Perpendicular offsets (±90°)
-        const perpX = Math.cos(angle + Math.PI / 2) * offsetPx;
-        const perpY = Math.sin(angle + Math.PI / 2) * offsetPx;
-        const pylon1 = Cones.place('start-beam', center, [center.lng + perpX, center.lat + perpY]);
-        const pylon2 = Cones.place('start-beam', center, [center.lng - perpX, center.lat - perpY]);
-        this._currentStartBeamPair = [pylon1.id, pylon2.id];
-        this._drawStartBeamConnectingLine(pylon1.lngLat, pylon2.lngLat);
-        this._updateStartBeamPairRotation();
-      } else {
-        // Map mode: compute offset in degrees
-        const metersPerDegLng = 111320 * Math.cos(center.lat * Math.PI / 180);
-        const metersPerDegLat = 110540;
-        const halfMeters = halfWidth / 3.28084;
+      const pylon2 = Cones.place('start-beam', lngLat, [lngLat.lng, lngLat.lat]);
+      this._currentStartBeamPair = [pylon1Id, pylon2.id];
 
-        // Angle in degrees (lng/lat space, adjusted for projection)
-        const dx = (lngLat.lng - center.lng) * metersPerDegLng;
-        const dy = (lngLat.lat - center.lat) * metersPerDegLat;
-        const angle = Math.atan2(dy, dx);
-
-        // Perpendicular offsets
-        const perpAngle = angle + Math.PI / 2;
-        const offsetLng = Math.cos(perpAngle) * halfMeters / metersPerDegLng;
-        const offsetLat = Math.sin(perpAngle) * halfMeters / metersPerDegLat;
-
-        const pylon1 = Cones.place('start-beam', center, [center.lng + offsetLng, center.lat + offsetLat]);
-        const pylon2 = Cones.place('start-beam', center, [center.lng - offsetLng, center.lat - offsetLat]);
-        this._currentStartBeamPair = [pylon1.id, pylon2.id];
-        this._drawStartBeamConnectingLine(pylon1.lngLat, pylon2.lngLat);
-        this._updateStartBeamPairRotation();
+      const pylon1Cone = Cones.cones.find(c => c.id === pylon1Id);
+      if (pylon1Cone) {
+        this._drawStartBeamConnectingLine(pylon1Cone.lngLat, pylon2.lngLat);
       }
     }
   },
 
   // ===== Start-Cone Tool (Two-Click) =====
 
-  /** Handle start-cone click — first click sets start, second click sets direction and places pair */
+  /** Handle start-cone click — first click places cone 1, second click places cone 2 */
   _handleStartConeClick(lngLat) {
     if (!this._startConeStart) {
-      this._startConeStart = lngLat;
-      this._showToast('Click to set driving direction for the start line', 'info');
-    } else {
-      const center = this._startConeStart;
-      this._startConeStart = null;
-      this._hidePreviewLine();
-
+      // First click: place the first cone immediately at the clicked position.
       History.push();
 
-      // Remove previous start-cone pair before placing new one
+      // Remove previous start-cone pair before starting a new one
       for (const id of this._currentStartConePair) {
         Cones.remove(id);
       }
       this._currentStartConePair = [];
 
-      // Calculate angle from center to second click (driving direction)
-      const startConeWidth = parseFloat(document.getElementById('start-cone-width-input').value) || 20;
-      const halfWidth = startConeWidth / 2;
+      const cone1 = Cones.place('start-cone', lngLat, [lngLat.lng, lngLat.lat]);
+      this._startConeStart = lngLat;
+      this._startConeCone1Id = cone1.id;
+      this._showToast('Click to place the other side of the start line', 'info');
+    } else {
+      // Second click: place the second cone at the clicked position.
+      const cone1Id = this._startConeCone1Id;
+      this._startConeStart = null;
+      this._startConeCone1Id = null;
+      this._hidePreviewLine();
 
-      if (this.mode === 'image') {
-        const scale = ImageMap.hasScale() ? ImageMap.getScale() : 1;
-        const offsetPx = halfWidth / scale;
-        // Angle from center to direction click
-        const dx = lngLat.lng - center.lng;
-        const dy = lngLat.lat - center.lat;
-        const angle = Math.atan2(dy, dx);
-        // Perpendicular offsets (±90°)
-        const perpX = Math.cos(angle + Math.PI / 2) * offsetPx;
-        const perpY = Math.sin(angle + Math.PI / 2) * offsetPx;
-        const cone1 = Cones.place('start-cone', center, [center.lng + perpX, center.lat + perpY]);
-        const cone2 = Cones.place('start-cone', center, [center.lng - perpX, center.lat - perpY]);
-        this._currentStartConePair = [cone1.id, cone2.id];
-        this._drawStartConeConnectingLine(cone1.lngLat, cone2.lngLat);
-      } else {
-        // Map mode: compute offset in degrees
-        const metersPerDegLng = 111320 * Math.cos(center.lat * Math.PI / 180);
-        const metersPerDegLat = 110540;
-        const halfMeters = halfWidth / 3.28084;
+      const cone2 = Cones.place('start-cone', lngLat, [lngLat.lng, lngLat.lat]);
+      this._currentStartConePair = [cone1Id, cone2.id];
 
-        // Angle in degrees (lng/lat space, adjusted for projection)
-        const dx = (lngLat.lng - center.lng) * metersPerDegLng;
-        const dy = (lngLat.lat - center.lat) * metersPerDegLat;
-        const angle = Math.atan2(dy, dx);
-
-        // Perpendicular offsets
-        const perpAngle = angle + Math.PI / 2;
-        const offsetLng = Math.cos(perpAngle) * halfMeters / metersPerDegLng;
-        const offsetLat = Math.sin(perpAngle) * halfMeters / metersPerDegLat;
-
-        const cone1 = Cones.place('start-cone', center, [center.lng + offsetLng, center.lat + offsetLat]);
-        const cone2 = Cones.place('start-cone', center, [center.lng - offsetLng, center.lat - offsetLat]);
-        this._currentStartConePair = [cone1.id, cone2.id];
-        this._drawStartConeConnectingLine(cone1.lngLat, cone2.lngLat);
+      const cone1Cone = Cones.cones.find(c => c.id === cone1Id);
+      if (cone1Cone) {
+        this._drawStartConeConnectingLine(cone1Cone.lngLat, cone2.lngLat);
       }
     }
   },
 
   // ===== Finish-Cone Tool (Two-Click) =====
 
-  /** Handle finish-cone click — first click sets start, second click sets direction and places pair */
+  /** Handle finish-cone click — first click places cone 1, second click places cone 2 */
   _handleFinishConeClick(lngLat) {
     if (!this._finishConeStart) {
-      this._finishConeStart = lngLat;
-      this._showToast('Click to set driving direction for the finish line', 'info');
-    } else {
-      const center = this._finishConeStart;
-      this._finishConeStart = null;
-      this._hidePreviewLine();
-
+      // First click: place the first cone immediately at the clicked position.
       History.push();
 
-      // Remove previous finish-cone pair before placing new one
+      // Remove previous finish-cone pair before starting a new one
       for (const id of this._currentFinishConePair) {
         Cones.remove(id);
       }
       this._currentFinishConePair = [];
 
-      // Calculate angle from center to second click (driving direction)
-      // Finish cone width is 50% larger than start-cone width
-      const startConeWidth = parseFloat(document.getElementById('start-cone-width-input').value) || 20;
-      const finishConeWidth = startConeWidth * 1.5;
-      const halfWidth = finishConeWidth / 2;
+      const cone1 = Cones.place('finish-cone', lngLat, [lngLat.lng, lngLat.lat]);
+      this._finishConeStart = lngLat;
+      this._finishConeCone1Id = cone1.id;
+      this._showToast('Click to place the other side of the finish line', 'info');
+    } else {
+      // Second click: place the second cone at the clicked position.
+      const cone1Id = this._finishConeCone1Id;
+      this._finishConeStart = null;
+      this._finishConeCone1Id = null;
+      this._hidePreviewLine();
 
-      if (this.mode === 'image') {
-        const scale = ImageMap.hasScale() ? ImageMap.getScale() : 1;
-        const offsetPx = halfWidth / scale;
-        // Angle from center to direction click
-        const dx = lngLat.lng - center.lng;
-        const dy = lngLat.lat - center.lat;
-        const angle = Math.atan2(dy, dx);
-        // Perpendicular offsets (±90°)
-        const perpX = Math.cos(angle + Math.PI / 2) * offsetPx;
-        const perpY = Math.sin(angle + Math.PI / 2) * offsetPx;
-        const cone1 = Cones.place('finish-cone', center, [center.lng + perpX, center.lat + perpY]);
-        const cone2 = Cones.place('finish-cone', center, [center.lng - perpX, center.lat - perpY]);
-        this._currentFinishConePair = [cone1.id, cone2.id];
-        this._drawFinishConeConnectingLine(cone1.lngLat, cone2.lngLat);
-        this._updateFinishConePairRotation();
-      } else {
-        // Map mode: compute offset in degrees
-        const metersPerDegLng = 111320 * Math.cos(center.lat * Math.PI / 180);
-        const metersPerDegLat = 110540;
-        const halfMeters = halfWidth / 3.28084;
+      const cone2 = Cones.place('finish-cone', lngLat, [lngLat.lng, lngLat.lat]);
+      this._currentFinishConePair = [cone1Id, cone2.id];
 
-        // Angle in degrees (lng/lat space, adjusted for projection)
-        const dx = (lngLat.lng - center.lng) * metersPerDegLng;
-        const dy = (lngLat.lat - center.lat) * metersPerDegLat;
-        const angle = Math.atan2(dy, dx);
-
-        // Perpendicular offsets
-        const perpAngle = angle + Math.PI / 2;
-        const offsetLng = Math.cos(perpAngle) * halfMeters / metersPerDegLng;
-        const offsetLat = Math.sin(perpAngle) * halfMeters / metersPerDegLat;
-
-        const cone1 = Cones.place('finish-cone', center, [center.lng + offsetLng, center.lat + offsetLat]);
-        const cone2 = Cones.place('finish-cone', center, [center.lng - offsetLng, center.lat - offsetLat]);
-        this._currentFinishConePair = [cone1.id, cone2.id];
-        this._drawFinishConeConnectingLine(cone1.lngLat, cone2.lngLat);
-        this._updateFinishConePairRotation();
+      const cone1Cone = Cones.cones.find(c => c.id === cone1Id);
+      if (cone1Cone) {
+        this._drawFinishConeConnectingLine(cone1Cone.lngLat, cone2.lngLat);
       }
-    }
-  },
-
-  /** Update finish cone pair rotation so flat sides face each other */
-  _updateStartBeamPairRotation() {
-    if (!this._currentStartBeamPair || this._currentStartBeamPair.length !== 2) return;
-    const pylon1 = Cones.cones.find(c => c.id === this._currentStartBeamPair[0]);
-    const pylon2 = Cones.cones.find(c => c.id === this._currentStartBeamPair[1]);
-    if (!pylon1 || !pylon2) return;
-
-    const dx = pylon2.lngLat[0] - pylon1.lngLat[0];
-    const dy = pylon2.lngLat[1] - pylon1.lngLat[1];
-    let angle;
-    if (this.mode === 'image') {
-      angle = Math.atan2(dy, dx) * 180 / Math.PI;
-    } else {
-      const cosLat = Math.cos(pylon1.lngLat[1] * Math.PI / 180);
-      const correctedDx = dx * cosLat;
-      angle = Math.atan2(dy, correctedDx) * 180 / Math.PI;
-    }
-
-    pylon1.rotation = angle;
-    pylon2.rotation = angle;
-    if (typeof Cones !== 'undefined') {
-      Cones._applyStartBeamRotation(pylon1);
-      Cones._applyStartBeamRotation(pylon2);
-    }
-  },
-
-  _updateFinishConePairRotation() {
-    if (!this._currentFinishConePair || this._currentFinishConePair.length !== 2) return;
-    const cone1 = Cones.cones.find(c => c.id === this._currentFinishConePair[0]);
-    const cone2 = Cones.cones.find(c => c.id === this._currentFinishConePair[1]);
-    if (!cone1 || !cone2) return;
-
-    const dx = cone2.lngLat[0] - cone1.lngLat[0];
-    const dy = cone2.lngLat[1] - cone1.lngLat[1];
-    let angle;
-    if (this.mode === 'image') {
-      angle = Math.atan2(dy, dx) * 180 / Math.PI;
-    } else {
-      const cosLat = Math.cos(cone1.lngLat[1] * Math.PI / 180);
-      const correctedDx = dx * cosLat;
-      angle = Math.atan2(dy, correctedDx) * 180 / Math.PI;
-    }
-
-    cone1.rotation = angle;
-    cone2.rotation = angle;
-    if (typeof Cones !== 'undefined') {
-      Cones._applyFinishConeRotation(cone1);
-      Cones._applyFinishConeRotation(cone2);
     }
   },
 
@@ -3081,18 +2247,21 @@ const App = {
     // Cancel start-cone preview if switching away (but keep existing cones and line)
     if (this.activeTool === 'start-cone' && tool !== 'start-cone') {
       this._startConeStart = null;
+      this._startConeCone1Id = null;
       this._hidePreviewLine();
     }
 
     // Cancel start-beam preview if switching away (but keep existing cones and line)
     if (this.activeTool === 'start-beam' && tool !== 'start-beam') {
       this._startBeamStart = null;
+      this._startBeamPylon1Id = null;
       this._hidePreviewLine();
     }
 
     // Cancel finish-cone preview if switching away (but keep existing cones and line)
     if (this.activeTool === 'finish-cone' && tool !== 'finish-cone') {
       this._finishConeStart = null;
+      this._finishConeCone1Id = null;
       this._hidePreviewLine();
     }
 
@@ -3921,13 +3090,11 @@ const App = {
       if (data.startBeamPair && Array.isArray(data.startBeamPair)) {
         this._currentStartBeamPair = data.startBeamPair.map(oldId => idMap[oldId]).filter(id => id != null);
         this._redrawStartBeamConnectingLine();
-        this._updateStartBeamPairRotation();
       }
       // Restore finish cone pair with mapped IDs
       if (data.finishConePair && Array.isArray(data.finishConePair)) {
         this._currentFinishConePair = data.finishConePair.map(oldId => idMap[oldId]).filter(id => id != null);
         this._redrawFinishConeConnectingLine();
-        this._updateFinishConePairRotation();
       }
     }
     if (data.drivingLine) DrivingLine.loadData(data.drivingLine);
@@ -4089,6 +3256,7 @@ const App = {
         this._slalomStart = null;
         this._gateCenter = null;
         this._startConeStart = null;
+        this._startConeCone1Id = null;
         this._hidePreviewLine();
         if (this.activeTool === 'measure') {
           Measurements.cancelPending();

@@ -228,10 +228,28 @@ const Cones = {
       if (cone.type === 'pointer') {
         this._applyPointerRotation(cone);
       }
+      // Show dotted preview line for pair cones during individual drag
+      if (typeof App !== 'undefined') {
+        const pairs = [App._currentStartConePair, App._currentStartBeamPair, App._currentFinishConePair];
+        for (const pair of pairs) {
+          if (Array.isArray(pair) && pair.length === 2 && pair.includes(cone.id)) {
+            const otherId = pair.find(id => id !== cone.id);
+            const other = this.cones.find(c => c.id === otherId);
+            if (other) {
+              App._showPreviewLine(
+                { lng: other.lngLat[0], lat: other.lngLat[1] },
+                { lng: cone.lngLat[0], lat: cone.lngLat[1] }
+              );
+            }
+            break;
+          }
+        }
+      }
     });
 
     // Update lngLat on drag
     marker.on('dragend', () => {
+      if (typeof App !== 'undefined') App._hidePreviewLine();
       const pos = marker.getLngLat();
       cone.lngLat = [pos.lng, pos.lat];
 
@@ -268,12 +286,6 @@ const Cones = {
       }
 
       this._updateAllPointerRotations();
-      if (cone.type === 'finish-cone' && typeof App !== 'undefined' && App._updateFinishConePairRotation) {
-        App._updateFinishConePairRotation();
-      }
-      if (cone.type === 'start-beam' && typeof App !== 'undefined' && App._updateStartBeamPairRotation) {
-        App._updateStartBeamPairRotation();
-      }
       if (this._onUpdate) this._onUpdate();
     });
 
