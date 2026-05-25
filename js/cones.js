@@ -78,7 +78,7 @@ const Cones = {
     const angle = this._computePointerRotation(cone);
     const inner = cone.marker.getElement().querySelector('.marker-pointer');
     if (inner) {
-      inner.style.transformOrigin = 'center 66%';
+      inner.style.transformOrigin = 'center 50%';
       inner.style.transform = `rotate(${angle}deg)`;
     }
   },

@@ -122,7 +122,7 @@ const App = {
       const BASE_ZOOM = 17;
       const updateMarkerScale = () => {
         const zoom = this.map.getZoom();
-        const scale = Math.pow(2, zoom - BASE_ZOOM);
+        const scale = Math.pow(2, (zoom - BASE_ZOOM) / 2);
         document.documentElement.style.setProperty('--marker-scale', scale);
       };
       this.map.on('zoom', updateMarkerScale);
@@ -275,6 +275,11 @@ const App = {
 
     // Wire up mousemove for distance measurement
     this.map.on('mousemove', (e) => this._handleMouseMove(e));
+
+    // Track shift key state for snap features
+    this._shiftDown = false;
+    document.addEventListener('keydown', (e) => { if (e.key === 'Shift') this._shiftDown = true; });
+    document.addEventListener('keyup',   (e) => { if (e.key === 'Shift') this._shiftDown = false; });
 
     // Wire up toolbar buttons
     this._setupToolbar();
@@ -715,7 +720,7 @@ const App = {
         break;
 
       case 'slalom':
-        this._handleSlalomClick(lngLat);
+        this._handleSlalomClick(lngLat, this._shiftDown);
         break;
 
       case 'obstacle':
@@ -842,8 +847,9 @@ const App = {
 
     // Slalom preview line
     if (this.activeTool === 'slalom' && this._slalomStart) {
-      this._showPreviewLine(this._slalomStart, lngLat);
-      const dist = this._calcDistanceFeet(this._slalomStart, lngLat);
+      const previewEnd = this._shiftDown ? this._snapSlalomAngle(this._slalomStart, lngLat) : lngLat;
+      this._showPreviewLine(this._slalomStart, previewEnd);
+      const dist = this._calcDistanceFeet(this._slalomStart, previewEnd);
       if (dist !== null) {
         this._showPreviewLabel(e.point, `${dist.toFixed(1)} ft`);
       }
@@ -2636,16 +2642,35 @@ const App = {
 
   // ===== Slalom Tool =====
 
+  /**
+   * Snap an end lngLat to the nearest 45-degree angle from start (in screen space).
+   * Used when Shift is held during slalom placement.
+   */
+  _snapSlalomAngle(startLngLat, endLngLat) {
+    const startPx = this.map.project(startLngLat);
+    const endPx   = this.map.project(endLngLat);
+    const dx = endPx.x - startPx.x;
+    const dy = endPx.y - startPx.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist === 0) return endLngLat;
+    const snapRad = Math.PI / 4; // 45 degrees
+    const snappedAngle = Math.round(Math.atan2(dy, dx) / snapRad) * snapRad;
+    return this.map.unproject({
+      x: startPx.x + dist * Math.cos(snappedAngle),
+      y: startPx.y + dist * Math.sin(snappedAngle),
+    });
+  },
+
   /** Handle slalom click (two-click with dialog) */
-  _handleSlalomClick(lngLat) {
+  _handleSlalomClick(lngLat, shiftKey) {
     // Ignore clicks while dialog is open
     if (!document.getElementById('slalom-dialog').classList.contains('hidden')) return;
 
     if (!this._slalomStart) {
       this._slalomStart = lngLat;
-      this._showToast('Click the end position for the slalom', 'info');
+      this._showToast('Click the end position for the slalom (hold Shift to snap to 45°)', 'info');
     } else {
-      this._slalomEnd = lngLat;
+      this._slalomEnd = shiftKey ? this._snapSlalomAngle(this._slalomStart, lngLat) : lngLat;
       this._hidePreviewLine();
       this._showSlalomDialog();
     }
