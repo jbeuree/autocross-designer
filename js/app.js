@@ -31,6 +31,7 @@ const App = {
   _startBeamLineElement: null, // SVG line connecting the start-beam pair
   _startBeamStart: null,  // first click for start-beam tool
   _leanerStart: null,     // first click for leaner tool
+  _pointerStart: null,    // first click state for pointer tool: {lngLat, regularConeId}
   _currentFinishConePair: [], // IDs of the current finish-cone pair [id1, id2]
   _extraDrivingLines: [],   // dynamically-added driving line instances
   _nextExtraLineIndex: 2,   // counter for line numbering
@@ -681,7 +682,6 @@ const App = {
 
     switch (this.activeTool) {
       case 'regular':
-      case 'pointer':
       case 'trailer':
       case 'cleartext':
       case 'staging-grid':
@@ -713,6 +713,10 @@ const App = {
 
       case 'gate':
         this._handleGateClick(lngLat);
+        break;
+
+      case 'pointer':
+        this._handlePointerClick(lngLat);
         break;
 
       case 'leaner':
@@ -853,6 +857,12 @@ const App = {
       if (dist !== null) {
         this._showPreviewLabel(e.point, `${dist.toFixed(1)} ft`);
       }
+      return;
+    }
+
+    // Pointer preview line
+    if (this.activeTool === 'pointer' && this._pointerStart) {
+      this._showPreviewLine(this._pointerStart.lngLat, lngLat);
       return;
     }
 
@@ -2318,6 +2328,82 @@ const App = {
     }
   },
 
+  // ===== Pointer Tool (Two-Click) =====
+
+  /** Handle pointer click — first click places the regular cone, second click places the pointer snapped to its edge */
+  _handlePointerClick(lngLat) {
+    if (!this._pointerStart) {
+      // First click: place the regular cone immediately
+      History.push();
+      const regularCone = Cones.place('regular', lngLat, [lngLat.lng, lngLat.lat]);
+      this._pointerStart = { lngLat, regularConeId: regularCone.id };
+      this._showToast('Move cursor around the cone and click to set where the pointer appears', 'info');
+    } else {
+      const center = this._pointerStart.lngLat;
+      const regularConeId = this._pointerStart.regularConeId;
+      this._pointerStart = null;
+      this._hidePreviewLine();
+
+      // Snap the pointer tip to just touch the regular cone's visual edge.
+      // Measure the cone's actual rendered diameter via getBoundingClientRect() —
+      // this automatically accounts for wrapper zoom scale (image mode) or CSS
+      // scale (map mode) without needing to know the zoom formula.
+      // Regular cone CSS diameter = 8px, pointer center-to-tip = 4.5px (ratio 9/16 of diameter).
+      // So snap = cone_radius + tip_offset = (4 + 4.5) / 8 * visual_diameter = 8.5/8 * diameter.
+      const regCone = Cones.cones.find(c => c.id === regularConeId);
+      const regEl = regCone?.marker.getElement();
+      const regRect = regEl ? regEl.getBoundingClientRect() : null;
+      const POINTER_SNAP_PX = regRect && regRect.width > 0 ? regRect.width * (8.5 / 8) : 8.5;
+      const centerPx = this.map.project(center);
+      const clickPx = this.map.project(lngLat);
+      const dpx = clickPx.x - centerPx.x;
+      const dpy = clickPx.y - centerPx.y;
+      const distPx = Math.sqrt(dpx * dpx + dpy * dpy);
+
+      // Normalized direction (default to north if click is exactly on the cone)
+      let ndpx = 0, ndpy = -1;
+      if (distPx > 0) {
+        ndpx = dpx / distPx;
+        ndpy = dpy / distPx;
+      }
+
+      // Pointer position: snap to just outside the regular cone's edge
+      const pointerPx = { x: centerPx.x + ndpx * POINTER_SNAP_PX, y: centerPx.y + ndpy * POINTER_SNAP_PX };
+      const pointerPos = this.map.unproject(pointerPx);
+
+      History.push();
+      const pointer = Cones.place('pointer', { lng: pointerPos.lng, lat: pointerPos.lat }, [pointerPos.lng, pointerPos.lat]);
+      // Lock to its companion regular cone so it auto-aims at it
+      pointer.lockedTargetId = regularConeId;
+      Cones._applyPointerRotation(pointer);
+
+      // --- SNAP DIAGNOSTIC (remove after fix) ---
+      setTimeout(() => {
+        const regCone2 = Cones.cones.find(c => c.id === regularConeId);
+        if (!regCone2 || !pointer) return;
+        const regEl2 = regCone2.marker.getElement();
+        const ptrEl = pointer.marker.getElement();
+        const regRect2 = regEl2.getBoundingClientRect();
+        const ptrRect = ptrEl.getBoundingClientRect();
+        const regCx = regRect2.left + regRect2.width / 2;
+        const regCy = regRect2.top + regRect2.height / 2;
+        const ptrCx = ptrRect.left + ptrRect.width / 2;
+        const ptrCy = ptrRect.top + ptrRect.height / 2;
+        const vizDist = Math.sqrt((ptrCx - regCx) ** 2 + (ptrCy - regCy) ** 2);
+        console.log('POINTER SNAP DIAG', {
+          zoom: this.map.getZoom().toFixed(2),
+          POINTER_SNAP_PX: POINTER_SNAP_PX.toFixed(2),
+          regRect_wh: `${regRect2.width.toFixed(1)}x${regRect2.height.toFixed(1)}`,
+          ptrRect_wh: `${ptrRect.width.toFixed(1)}x${ptrRect.height.toFixed(1)}`,
+          vizDist_centers: vizDist.toFixed(2),
+          regPos: `(${regCx.toFixed(1)}, ${regCy.toFixed(1)})`,
+          ptrPos: `(${ptrCx.toFixed(1)}, ${ptrCy.toFixed(1)})`,
+        });
+      }, 50);
+      // --- END DIAGNOSTIC ---
+    }
+  },
+
   // ===== Leaner Tool (Two-Click) =====
 
   /** Handle leaner click — first click places the cone, second click sets the pointing direction */
@@ -2977,6 +3063,12 @@ const App = {
     // Cancel gate if switching away
     if (this.activeTool === 'gate' && tool !== 'gate') {
       this._gateCenter = null;
+      this._hidePreviewLine();
+    }
+
+    // Cancel pointer if switching away
+    if (this.activeTool === 'pointer' && tool !== 'pointer') {
+      this._pointerStart = null;
       this._hidePreviewLine();
     }
 
