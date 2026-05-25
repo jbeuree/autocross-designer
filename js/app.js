@@ -1674,8 +1674,8 @@ const App = {
         ndpy = dpy / distPx;
       }
 
-      // Pointer position: snap to just outside the regular cone's edge
-      const pointerPx = { x: centerPx.x + ndpx * POINTER_SNAP_PX, y: centerPx.y + ndpy * POINTER_SNAP_PX };
+      // Pointer position: snap to just outside the regular cone's edge, opposite the click direction
+      const pointerPx = { x: centerPx.x - ndpx * POINTER_SNAP_PX, y: centerPx.y - ndpy * POINTER_SNAP_PX };
       const pointerPos = this.map.unproject(pointerPx);
 
       History.push();

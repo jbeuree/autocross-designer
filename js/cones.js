@@ -155,8 +155,8 @@ const Cones = {
             const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist > 0) {
               const snapOffset = ImageMap.hasScale() ? (5 / ImageMap.getScale()) : 15;
-              placeLng = nearest.lngLat[0] + (dx / dist) * snapOffset;
-              placeLat = nearest.lngLat[1] + (dy / dist) * snapOffset;
+              placeLng = nearest.lngLat[0] - (dx / dist) * snapOffset;
+              placeLat = nearest.lngLat[1] - (dy / dist) * snapOffset;
             }
           } else {
             // Correct for latitude projection so pointers orbit in a true circle
@@ -166,8 +166,8 @@ const Cones = {
             if (dist > 0) {
               const snapOffset = POINTER_SNAP_OFFSET_DEG;
               // Apply offset in corrected space, then convert back to degrees
-              placeLng = nearest.lngLat[0] + (dxMeters / dist) * snapOffset / cosLat;
-              placeLat = nearest.lngLat[1] + (dy / dist) * snapOffset;
+              placeLng = nearest.lngLat[0] - (dxMeters / dist) * snapOffset / cosLat;
+              placeLat = nearest.lngLat[1] - (dy / dist) * snapOffset;
             }
           }
         }
