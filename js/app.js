@@ -126,7 +126,7 @@ const App = {
       const BASE_ZOOM = 17;
       const updateMarkerScale = () => {
         const zoom = this.map.getZoom();
-        const scale = Math.pow(2, (zoom - BASE_ZOOM) / 2);
+        const scale = Math.pow(2, (zoom - BASE_ZOOM) / 2) * 0.75;
         document.documentElement.style.setProperty('--marker-scale', scale);
       };
       this.map.on('zoom', updateMarkerScale);
@@ -749,7 +749,7 @@ const App = {
 
       case 'drivingline':
         History.push();
-        DrivingLine.addWaypoint(lngLat);
+        DrivingLine.addWaypoint(lngLat, e.point);
         break;
 
       default:
@@ -760,7 +760,7 @@ const App = {
             const extraLine = this._extraDrivingLines.find(l => l.index === extraIdx);
             if (extraLine) {
               History.push();
-              extraLine.addWaypoint(lngLat);
+              extraLine.addWaypoint(lngLat, e.point);
             }
           }
         }
@@ -2497,6 +2497,9 @@ const App = {
     confirmBtn.addEventListener('click', () => {
       dialog.classList.add('hidden');
       const targetDPI = this.mode === 'image' ? (parseInt(dpiInput && dpiInput.value) || this._backgroundDPI || 96) : 96;
+      if (this.mode === 'image' && targetDPI > 0) {
+        this._backgroundDPI = targetDPI;
+      }
       this._captureImage(includeGrid.checked, blackCones.checked, targetDPI);
     });
   },
@@ -3059,6 +3062,9 @@ const App = {
     data.imageLayers = ImageLayers.getData();
     data.statsOverlay = StatsOverlay.getData();
     data.scaleOverlay = ScaleOverlay.getData();
+    if (this.mode === 'image' && this._backgroundDPI && this._backgroundDPI !== 96) {
+      data.backgroundDPI = this._backgroundDPI;
+    }
     // Serialize extra driving lines
     if (this._extraDrivingLines.length > 0) {
       data.extraDrivingLines = this._extraDrivingLines.map(l => l.getData());
@@ -3077,6 +3083,9 @@ const App = {
   _loadCourseData(data) {
     if (Object.prototype.hasOwnProperty.call(data, 'solidDrivingLine')) {
       this._solidDrivingLine = !!data.solidDrivingLine;
+    }
+    if (data.backgroundDPI > 0) {
+      this._backgroundDPI = data.backgroundDPI;
     }
 
     if (data.cones) {

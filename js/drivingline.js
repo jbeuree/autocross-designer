@@ -46,8 +46,11 @@ const DrivingLine = {
     this.setSolid(this._isSolid);
   },
 
-  /** Add a waypoint at the given lngLat */
-  addWaypoint(lngLat) {
+  /** Add a waypoint at the given lngLat.
+   *  If a screen-space point {x,y} is provided and falls near an existing
+   *  segment (within 20px), the waypoint is inserted between the two nearest
+   *  waypoints.  Otherwise it is appended to the end. */
+  addWaypoint(lngLat, point) {
     const el = document.createElement('div');
     el.className = 'waypoint-marker';
 
@@ -79,7 +82,16 @@ const DrivingLine = {
       if (this._onUpdate) this._onUpdate();
     });
 
-    this.waypoints.push(wp);
+    // Insert between neighbors when clicking near an existing segment,
+    // otherwise append to end.
+    let insertIdx = this.waypoints.length;
+    if (point && this.waypoints.length >= 2) {
+      const closest = this._findClosestSegment(point);
+      if (closest.dist < 20) {
+        insertIdx = closest.segIdx + 1;
+      }
+    }
+    this.waypoints.splice(insertIdx, 0, wp);
 
     this._updateLine();
     if (this._onUpdate) this._onUpdate();
@@ -112,6 +124,35 @@ const DrivingLine = {
     if (source) {
       source.setData(this._buildGeoJSON());
     }
+  },
+
+  /** Return the index of the segment [i, i+1] whose screen-space midline is
+   *  closest to the given pixel point, plus the pixel distance to that segment. */
+  _findClosestSegment(point) {
+    let bestDist = Infinity;
+    let bestSegIdx = this.waypoints.length - 1;
+    for (let i = 0; i < this.waypoints.length - 1; i++) {
+      const a = this._map.project(this.waypoints[i].lngLat);
+      const b = this._map.project(this.waypoints[i + 1].lngLat);
+      const dist = this._distPointToSegment(point, a, b);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestSegIdx = i;
+      }
+    }
+    return { segIdx: bestSegIdx, dist: bestDist };
+  },
+
+  /** Pixel distance from point p to the finite segment [a, b]. */
+  _distPointToSegment(p, a, b) {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) {
+      return Math.hypot(p.x - a.x, p.y - a.y);
+    }
+    const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq));
+    return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
   },
 
   /** Catmull-Rom spline interpolation */

@@ -342,12 +342,12 @@ startfinish-btn {
 
 .cone-marker {
   cursor: crosshair;
-  transform: scale(var(--marker-scale, 1));
+  transform: scale(var(--marker-scale, 0.75));
   position: relative;
 }
 
 .cone-marker.selected {
-  transform: scale(calc(var(--marker-scale, 1) * 1.4));
+  transform: scale(calc(var(--marker-scale, 0.75) * 1.4));
   filter: drop-shadow(0 0 4px rgba(255,255,255,0.8));
 }
 
@@ -374,21 +374,21 @@ startfinish-btn {
   height: 0;
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
-  border-bottom: 14px solid #ff8c00;
+  border-bottom: 9px solid #ff8c00;
   filter: drop-shadow(0 0 1px rgba(0,0,0,0.3));
   transform-origin: center center;
 }
 
 /* Leaner direction-line + handle shown on hover.
-   The wrap is placed at the leaner's rotation center (center of the 10×14px
-   border-box triangle = 5px right, 7px down from .cone-marker top-left).
+   The wrap is placed at the leaner's rotation center (center of the 10×9px
+   border-box triangle = 5px right, 4.5px down from .cone-marker top-left).
    transform-origin: 0 0 means it pivots around that same center point. */
 .leaner-rotate-wrap {
   position: absolute;
   width: 0;
   height: 0;
-  /* center of .marker-leaner border-box: left-border(5) center, top-border(0)+bottom-border(14) center */
-  top: 7px;
+  /* center of .marker-leaner border-box: left-border(5) center, top-border(0)+bottom-border(9) center */
+  top: 4.5px;
   left: 5px;
   transform-origin: 0 0;
   opacity: 0;
@@ -403,13 +403,13 @@ startfinish-btn {
 }
 
 /* Line from rotation center (wrap origin) upward through the tip and 14px past it.
-   Tip is 7px above rotation center; line extends 21px total. */
+   Tip is 4.5px above rotation center; line extends 18.5px total. */
 .leaner-direction-line {
   position: absolute;
   width: 1.5px;
-  height: 21px;
+  height: 18.5px;
   background: rgba(96, 165, 250, 0.75);
-  top: -21px;
+  top: -18.5px;
   left: -0.75px;
   pointer-events: none;
 }
@@ -422,7 +422,7 @@ startfinish-btn {
   border-radius: 50%;
   background: rgba(96, 165, 250, 0.9);
   border: 1.5px solid #3b82f6;
-  top: -26px;
+  top: -23.5px;
   left: -5px;
   cursor: grab;
   pointer-events: auto;
