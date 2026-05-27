@@ -18,6 +18,8 @@ const App = {
   _scaleLine: null,       // temp SVG line overlay
   _slalomStart: null,     // first click for slalom tool
   _slalomEnd: null,       // second click for slalom tool
+  _leanerSetStart: null,  // first click for leaner-set tool
+  _leanerSetEnd: null,    // second click for leaner-set tool
   _gateCenter: null,      // first click for gate tool
   _startConeStart: null,  // first cone lngLat for start-cone tool
   _startConeCone1Id: null, // cone id of the first cone placed during start-cone placement
@@ -726,6 +728,10 @@ const App = {
         this._handleLeanerClick(lngLat);
         break;
 
+      case 'leaner-set':
+        this._handleLeanerSetClick(lngLat, this._shiftDown);
+        break;
+
       case 'slalom':
         this._handleSlalomClick(lngLat, this._shiftDown);
         break;
@@ -857,6 +863,17 @@ const App = {
       const previewEnd = this._shiftDown ? this._snapSlalomAngle(this._slalomStart, lngLat) : lngLat;
       this._showPreviewLine(this._slalomStart, previewEnd);
       const dist = this._calcDistanceFeet(this._slalomStart, previewEnd);
+      if (dist !== null) {
+        this._showPreviewLabel(e.point, `${dist.toFixed(1)} ft`);
+      }
+      return;
+    }
+
+    // Leaner Set preview line
+    if (this.activeTool === 'leaner-set' && this._leanerSetStart) {
+      const previewEnd = this._shiftDown ? this._snapSlalomAngle(this._leanerSetStart, lngLat) : lngLat;
+      this._showPreviewLine(this._leanerSetStart, previewEnd);
+      const dist = this._calcDistanceFeet(this._leanerSetStart, previewEnd);
       if (dist !== null) {
         this._showPreviewLabel(e.point, `${dist.toFixed(1)} ft`);
       }
@@ -2080,6 +2097,183 @@ const App = {
     }
   },
 
+  // ===== Leaner Set Tool =====
+
+  /** Handle leaner-set click (two-click with dialog) */
+  _handleLeanerSetClick(lngLat, shiftKey) {
+    // Ignore clicks while dialog is open
+    if (!document.getElementById('leaner-set-dialog').classList.contains('hidden')) return;
+
+    if (!this._leanerSetStart) {
+      this._leanerSetStart = lngLat;
+      this._showToast('Click the end position for the leaner set (hold Shift to snap to 45°)', 'info');
+    } else {
+      this._leanerSetEnd = shiftKey ? this._snapSlalomAngle(this._leanerSetStart, lngLat) : lngLat;
+      this._hidePreviewLine();
+      this._showLeanerSetDialog();
+    }
+  },
+
+  /** Show the leaner-set configuration dialog */
+  _showLeanerSetDialog() {
+    const start = this._leanerSetStart;
+    const end = this._leanerSetEnd;
+    const clickedFeet = this._calcDistanceFeet(start, end);
+    const hasDist = clickedFeet !== null && clickedFeet > 0;
+
+    // Direction unit vector in coordinate space
+    const dLng = end.lng - start.lng;
+    const dLat = end.lat - start.lat;
+    const lineLenCoord = Math.sqrt(dLng * dLng + dLat * dLat);
+    const uLng = lineLenCoord > 0 ? dLng / lineLenCoord : 1;
+    const uLat = lineLenCoord > 0 ? dLat / lineLenCoord : 0;
+    const coordPerFoot = hasDist ? lineLenCoord / clickedFeet : 0;
+
+    // Compute rotation for all leaners (pointing from start toward end)
+    let rotation;
+    if (this.mode === 'image') {
+      rotation = Math.atan2(dLng, -dLat) * (180 / Math.PI);
+    } else {
+      const cosLat = Math.cos(start.lat * Math.PI / 180);
+      const correctedDx = dLng * cosLat;
+      rotation = Math.atan2(correctedDx, dLat) * (180 / Math.PI);
+    }
+
+    const dialog = document.getElementById('leaner-set-dialog');
+    const lengthInput = document.getElementById('leaner-set-length-input');
+    const spacingInput = document.getElementById('leaner-set-spacing-input');
+    const countInput = document.getElementById('leaner-set-count-input');
+    const confirmBtn = document.getElementById('leaner-set-confirm');
+    const cancelBtn = document.getElementById('leaner-set-cancel');
+
+    lengthInput.value = hasDist ? clickedFeet.toFixed(1) : '';
+    spacingInput.value = '';
+    countInput.value = '5';
+
+    let lastEdited = 'count';
+
+    const getLength = () => parseFloat(lengthInput.value) || 0;
+    const getSpacing = () => parseFloat(spacingInput.value) || 0;
+    const getCount = () => parseInt(countInput.value) || 0;
+
+    const updateFromLength = () => {
+      lastEdited = 'length';
+      const len = getLength();
+      const spacing = getSpacing();
+      if (len > 0 && spacing > 0) {
+        countInput.value = Math.floor(len / spacing) + 1;
+      } else {
+        const count = getCount();
+        if (count >= 2 && len > 0) {
+          spacingInput.value = (len / (count - 1)).toFixed(1);
+        }
+      }
+      this._updateLeanerSetPreview();
+    };
+
+    const updateFromSpacing = () => {
+      lastEdited = 'spacing';
+      const spacing = getSpacing();
+      const len = getLength();
+      if (spacing > 0 && len > 0) {
+        countInput.value = Math.floor(len / spacing) + 1;
+      }
+      this._updateLeanerSetPreview();
+    };
+
+    const updateFromCount = () => {
+      lastEdited = 'count';
+      const count = getCount();
+      const len = getLength();
+      if (count >= 2 && len > 0) {
+        spacingInput.value = (len / (count - 1)).toFixed(1);
+      }
+      this._updateLeanerSetPreview();
+    };
+
+    updateFromCount();
+
+    dialog.classList.remove('hidden');
+    countInput.focus();
+
+    const cleanup = () => {
+      dialog.classList.add('hidden');
+      lengthInput.removeEventListener('input', updateFromLength);
+      spacingInput.removeEventListener('input', updateFromSpacing);
+      countInput.removeEventListener('input', updateFromCount);
+      confirmBtn.removeEventListener('click', onConfirm);
+      cancelBtn.removeEventListener('click', onCancel);
+      lengthInput.removeEventListener('keydown', onKey);
+      spacingInput.removeEventListener('keydown', onKey);
+      countInput.removeEventListener('keydown', onKey);
+    };
+
+    const onConfirm = () => {
+      const count = getCount();
+      const spacing = getSpacing();
+      const len = getLength();
+      if (!count || count < 2) {
+        countInput.focus();
+        return;
+      }
+      cleanup();
+      History.push();
+
+      const stepCoord = spacing > 0 && coordPerFoot > 0
+        ? spacing * coordPerFoot
+        : (len > 0 && coordPerFoot > 0 && count > 1)
+          ? (len / (count - 1)) * coordPerFoot
+          : (count > 1 ? lineLenCoord / (count - 1) : 0);
+
+      for (let i = 0; i < count; i++) {
+        const lng = start.lng + uLng * stepCoord * i;
+        const lat = start.lat + uLat * stepCoord * i;
+        const cone = Cones.place('leaner', { lng, lat }, [lng, lat]);
+        cone.rotation = rotation;
+        Cones._applyLeanerRotation(cone);
+      }
+
+      this._leanerSetStart = null;
+      this._leanerSetEnd = null;
+    };
+
+    const onCancel = () => {
+      cleanup();
+      this._leanerSetStart = null;
+      this._leanerSetEnd = null;
+    };
+
+    const onKey = (e) => {
+      if (e.key === 'Enter') onConfirm();
+      if (e.key === 'Escape') onCancel();
+    };
+
+    lengthInput.addEventListener('input', updateFromLength);
+    spacingInput.addEventListener('input', updateFromSpacing);
+    countInput.addEventListener('input', updateFromCount);
+    confirmBtn.addEventListener('click', onConfirm);
+    cancelBtn.addEventListener('click', onCancel);
+    lengthInput.addEventListener('keydown', onKey);
+    spacingInput.addEventListener('keydown', onKey);
+    countInput.addEventListener('keydown', onKey);
+  },
+
+  /** Update the leaner-set preview text in the dialog */
+  _updateLeanerSetPreview() {
+    const countInput = document.getElementById('leaner-set-count-input');
+    const spacingInput = document.getElementById('leaner-set-spacing-input');
+    const previewText = document.getElementById('leaner-set-preview-text');
+    const count = parseInt(countInput.value) || 0;
+    const spacing = parseFloat(spacingInput.value) || 0;
+    if (count >= 2 && spacing > 0) {
+      previewText.textContent = `Will place ${count} leaners, ${spacing.toFixed(1)} ft apart`;
+    } else if (count >= 2) {
+      previewText.textContent = `Will place ${count} leaners`;
+    } else {
+      previewText.textContent = 'Will place -- leaners, -- ft apart';
+    }
+  },
+
   // ===== Box Selection =====
 
   _setupBoxSelection() {
@@ -2241,6 +2435,13 @@ const App = {
     // Cancel leaner if switching away
     if (this.activeTool === 'leaner' && tool !== 'leaner') {
       this._leanerStart = null;
+      this._hidePreviewLine();
+    }
+
+    // Cancel leaner-set if switching away
+    if (this.activeTool === 'leaner-set' && tool !== 'leaner-set') {
+      this._leanerSetStart = null;
+      this._leanerSetEnd = null;
       this._hidePreviewLine();
     }
 
@@ -2861,7 +3062,9 @@ const App = {
     // Draw stats and scale overlays in coordinate-translated space (image coords for image
     // mode; map mode originOffset is always 0 so translate is a no-op).
     StatsOverlay.drawOnCanvas(ctx, dpr, this.mode);
-    ScaleOverlay.drawOnCanvas(ctx, dpr, this.mode);
+    if (Layers.isVisible('scaleOverlay')) {
+      ScaleOverlay.drawOnCanvas(ctx, dpr, this.mode);
+    }
 
     // Restore coordinate translate; grid uses absolute canvas positions.
     ctx.restore();

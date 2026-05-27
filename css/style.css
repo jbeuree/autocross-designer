@@ -916,7 +916,8 @@ startfinish-btn {
 }
 
 #scale-dialog,
-#slalom-dialog {
+#slalom-dialog,
+#leaner-set-dialog {
   position: fixed;
   top: 0;
   left: 0;
