@@ -721,11 +721,11 @@ const App = {
         break;
 
       case 'pointer':
-        this._handlePointerClick(lngLat);
+        this._handlePointerClick(lngLat, this._shiftDown);
         break;
 
       case 'leaner':
-        this._handleLeanerClick(lngLat);
+        this._handleLeanerClick(lngLat, this._shiftDown);
         break;
 
       case 'leaner-set':
@@ -882,13 +882,15 @@ const App = {
 
     // Pointer preview line
     if (this.activeTool === 'pointer' && this._pointerStart) {
-      this._showPreviewLine(this._pointerStart.lngLat, lngLat);
+      const previewEnd = this._shiftDown ? this._snapSlalomAngle(this._pointerStart.lngLat, lngLat) : lngLat;
+      this._showPreviewLine(this._pointerStart.lngLat, previewEnd);
       return;
     }
 
     // Leaner preview line
     if (this.activeTool === 'leaner' && this._leanerStart) {
-      this._showPreviewLine(this._leanerStart, lngLat);
+      const previewEnd = this._shiftDown ? this._snapSlalomAngle(this._leanerStart, lngLat) : lngLat;
+      this._showPreviewLine(this._leanerStart, previewEnd);
       return;
     }
 
@@ -1655,13 +1657,13 @@ const App = {
   // ===== Pointer Tool (Two-Click) =====
 
   /** Handle pointer click — first click places the regular cone, second click places the pointer snapped to its edge */
-  _handlePointerClick(lngLat) {
+  _handlePointerClick(lngLat, shiftKey) {
     if (!this._pointerStart) {
       // First click: place the regular cone immediately
       History.push();
       const regularCone = Cones.place('regular', lngLat, [lngLat.lng, lngLat.lat]);
       this._pointerStart = { lngLat, regularConeId: regularCone.id };
-      this._showToast('Move cursor around the cone and click to set where the pointer appears', 'info');
+      this._showToast('Move cursor around the cone and click to set where the pointer appears (hold Shift to snap to 45°)', 'info');
     } else {
       const center = this._pointerStart.lngLat;
       const regularConeId = this._pointerStart.regularConeId;
@@ -1687,8 +1689,10 @@ const App = {
       // Normalized direction (default to north if click is exactly on the cone)
       let ndpx = 0, ndpy = -1;
       if (distPx > 0) {
-        ndpx = dpx / distPx;
-        ndpy = dpy / distPx;
+        let angle = Math.atan2(dpy, dpx);
+        if (shiftKey) angle = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
+        ndpx = Math.cos(angle);
+        ndpy = Math.sin(angle);
       }
 
       // Pointer position: snap to just outside the regular cone's edge, opposite the click direction
@@ -1731,10 +1735,10 @@ const App = {
   // ===== Leaner Tool (Two-Click) =====
 
   /** Handle leaner click — first click places the cone, second click sets the pointing direction */
-  _handleLeanerClick(lngLat) {
+  _handleLeanerClick(lngLat, shiftKey) {
     if (!this._leanerStart) {
       this._leanerStart = lngLat;
-      this._showToast('Click to set the direction the cone is pointing', 'info');
+      this._showToast('Click to set the direction the cone is pointing (hold Shift to snap to 45°)', 'info');
     } else {
       const center = this._leanerStart;
       this._leanerStart = null;
@@ -1745,16 +1749,20 @@ const App = {
       const cone = Cones.place('leaner', center, [center.lng, center.lat]);
 
       // Compute pointing angle (same convention as pointer: 0° = north/up)
+      let rotation;
       if (this.mode === 'image') {
         const dx = lngLat.lng - center.lng;
         const dy = lngLat.lat - center.lat;
-        cone.rotation = Math.atan2(dx, -dy) * (180 / Math.PI);
+        rotation = Math.atan2(dx, -dy) * (180 / Math.PI);
       } else {
         const cosLat = Math.cos(center.lat * Math.PI / 180);
         const dx = (lngLat.lng - center.lng) * cosLat;
         const dy = lngLat.lat - center.lat;
-        cone.rotation = Math.atan2(dx, dy) * (180 / Math.PI);
+        rotation = Math.atan2(dx, dy) * (180 / Math.PI);
       }
+
+      if (shiftKey) rotation = Math.round(rotation / 45) * 45;
+      cone.rotation = rotation;
 
       Cones._applyLeanerRotation(cone);
     }
