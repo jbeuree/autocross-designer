@@ -2894,8 +2894,11 @@ const App = {
       } else if (cone.type === 'trailer' || cone.type === 'cleartext') {
         if (cone.rotation) ctx.rotate(cone.rotation * Math.PI / 180);
         const elemScale = Cones._getElementScale(cone);
-        const tw = (cone.width || 40) * elemScale * dpr / 2;
-        const th = (cone.height || 20) * elemScale * dpr / 2;
+        // In image mode markers have a scale(0.5) counter-scale applied on screen,
+        // so divide by 2 to match. In map mode CSS size == canvas size / dpr.
+        const trailScale = this.mode === 'image' ? 0.5 : 1;
+        const tw = (cone.width || 40) * elemScale * dpr * trailScale;
+        const th = (cone.height || 20) * elemScale * dpr * trailScale;
         if (!cone.clearBackground) {
           ctx.beginPath();
           ctx.rect(-tw / 2, -th / 2, tw, th);
