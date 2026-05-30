@@ -181,7 +181,7 @@ const Cones = {
       .setLngLat([placeLng, placeLat])
       .addTo(this._map);
 
-    const cone = { id, type, lngLat: [placeLng, placeLat], marker, lockedTargetId: null, width: null, height: null, rotation: 0, clearBackground };
+    const cone = { id, type, lngLat: [placeLng, placeLat], marker, lockedTargetId: null, width: null, height: null, rotation: 0, clearBackground, bgColor: null, bgOpacity: null };
     this.cones.push(cone);
 
     // Add resize and rotate handles for resizable elements
@@ -195,6 +195,10 @@ const Cones = {
       }
       this._addResizeHandle(cone, el);
       this._addRotateHandle(cone, el);
+      if (type === 'trailer') {
+        this._addColorPickerBtn(cone, el);
+        this._addOpacitySlider(cone, el);
+      }
       this._updateElementTransform(cone);
       if (type === 'trailer' || type === 'cleartext') {
         this._updateTrailerStyle(cone);
@@ -350,6 +354,8 @@ const Cones = {
       if (c.rotation) d.rotation = c.rotation;
       if (c.baseZoom != null) d.baseZoom = c.baseZoom;
       if (c.clearBackground) d.clearBackground = c.clearBackground;
+      if (c.bgColor != null) d.bgColor = c.bgColor;
+      if (c.bgOpacity != null) d.bgOpacity = c.bgOpacity;
       if (c.text) d.text = c.text;
       return d;
     });
@@ -376,6 +382,12 @@ const Cones = {
       }
       if ('clearBackground' in d) {
         cone.clearBackground = d.clearBackground;
+      }
+      if ('bgColor' in d) {
+        cone.bgColor = d.bgColor;
+      }
+      if ('bgOpacity' in d) {
+        cone.bgOpacity = d.bgOpacity;
       }
       if (cone.width || cone.rotation) {
         this._applySize(cone);
@@ -572,16 +584,109 @@ const Cones = {
     }
   },
 
-  /** Apply clear-background styling to a trailer */
+  /** Build the CSS background string for a trailer, factoring in bgColor and bgOpacity */
+  _buildTrailerBg(cone) {
+    const hex = cone.bgColor || '#78788c';
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    const a = cone.bgOpacity != null ? cone.bgOpacity : 0.8;
+    return `rgba(${r},${g},${b},${a})`;
+  },
+
+  /** Apply clear-background styling, bgColor, and bgOpacity to a trailer */
   _updateTrailerStyle(cone) {
     if (cone.type !== 'trailer' && cone.type !== 'cleartext') return;
     const inner = cone.marker.getElement().querySelector('.marker-trailer');
     if (!inner) return;
     if (cone.clearBackground) {
       inner.classList.add('clear-background');
+      inner.style.background = '';
     } else {
       inner.classList.remove('clear-background');
+      inner.style.background = this._buildTrailerBg(cone);
     }
+    // Sync controls if present (they live on the .cone-marker, not .marker-trailer)
+    const coneEl = cone.marker.getElement();
+    const colorInput = coneEl.querySelector('.trailer-color-input');
+    if (colorInput && cone.bgColor) colorInput.value = cone.bgColor;
+    const opacitySlider = coneEl.querySelector('.trailer-opacity-slider');
+    if (opacitySlider) opacitySlider.value = cone.bgOpacity != null ? cone.bgOpacity : 0.8;
+  },
+
+  /** Get or create the shared controls panel for a trailer (sibling to .marker-trailer on .cone-marker) */
+  _getOrCreateTrailerControls(el) {
+    let panel = el.querySelector('.trailer-controls');
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.className = 'trailer-controls';
+      // Absorb pointer events at panel level so map drag doesn't fire
+      panel.addEventListener('mousedown', (e) => e.stopPropagation());
+      el.appendChild(panel);
+    }
+    return panel;
+  },
+
+  /** Add a hover color-picker button to a trailer element */
+  _addColorPickerBtn(cone, el) {
+    const panel = this._getOrCreateTrailerControls(el);
+
+    const btn = document.createElement('div');
+    btn.className = 'trailer-color-btn';
+    btn.title = 'Pick background color';
+
+    const input = document.createElement('input');
+    input.type = 'color';
+    input.className = 'trailer-color-input';
+    input.value = cone.bgColor || '#78788c';
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      input.click();
+    });
+    input.addEventListener('mousedown', (e) => e.stopPropagation());
+    input.addEventListener('click', (e) => e.stopPropagation());
+
+    input.addEventListener('input', (e) => {
+      cone.bgColor = e.target.value;
+      this._updateTrailerStyle(cone);
+      if (this._onUpdate) this._onUpdate();
+    });
+    input.addEventListener('change', () => {
+      try { if (typeof History !== 'undefined') History.push(); } catch (ex) {}
+      if (this._onUpdate) this._onUpdate();
+    });
+
+    btn.appendChild(input);
+    panel.appendChild(btn);
+  },
+
+  /** Add a hover opacity slider to a trailer element */
+  _addOpacitySlider(cone, el) {
+    const panel = this._getOrCreateTrailerControls(el);
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.className = 'trailer-opacity-slider';
+    slider.min = '0';
+    slider.max = '1';
+    slider.step = '0.05';
+    slider.value = cone.bgOpacity != null ? cone.bgOpacity : 0.8;
+    slider.title = 'Background opacity';
+
+    slider.addEventListener('click', (e) => e.stopPropagation());
+    slider.addEventListener('input', (e) => {
+      cone.bgOpacity = parseFloat(e.target.value);
+      this._updateTrailerStyle(cone);
+      if (this._onUpdate) this._onUpdate();
+    });
+    slider.addEventListener('change', () => {
+      try { if (typeof History !== 'undefined') History.push(); } catch (ex) {}
+      if (this._onUpdate) this._onUpdate();
+    });
+
+    panel.appendChild(slider);
   },
 
   /** Update the text displayed on a trailer */

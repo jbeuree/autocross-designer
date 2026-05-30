@@ -494,6 +494,39 @@ startfinish-btn {
   cursor: pointer;
 }
 
+/* First vertex of an in-progress highlight area — distinct visual as close-target */
+.waypoint-marker.highlight-first-vertex {
+  background: rgba(200, 200, 200, 0.85);
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  width: 10px;
+  height: 10px;
+}
+
+/* Completed highlight area vertex dots */
+.highlight-area-vertex {
+  cursor: context-menu;
+}
+
+.highlight-color-input {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid #666;
+  border-radius: 2px;
+  cursor: pointer;
+  background: none;
+  margin-left: 4px;
+}
+
+.highlight-opacity-slider {
+  width: 60px;
+  height: 14px;
+  cursor: pointer;
+  margin-left: 2px;
+  flex-shrink: 0;
+}
+
 /* Search Suggestions Dropdown */
 #search-suggestions {
   position: absolute;
@@ -1086,6 +1119,61 @@ startfinish-btn {
 .cone-marker.resizable:hover .rotate-handle,
 .cone-marker.resizable.selected .rotate-handle {
   opacity: 1;
+}
+
+/* Controls panel (color + opacity) shown to the right of text box on hover */
+.trailer-controls {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 5px);
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #999;
+  border-radius: 3px;
+  padding: 2px 5px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 10;
+}
+
+.cone-marker.resizable:hover .trailer-controls,
+.cone-marker.resizable.selected .trailer-controls {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.trailer-color-btn {
+  width: 14px;
+  height: 14px;
+  border: 1px solid #666;
+  border-radius: 2px;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.trailer-color-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.trailer-opacity-slider {
+  width: 64px;
+  height: 14px;
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
 }
 
 .marker-trailer {

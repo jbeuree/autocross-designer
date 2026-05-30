@@ -271,6 +271,7 @@ const App = {
 
     Layers.init();
     ImageLayers.init(this.map, this.mode);
+    Highlights.init(this.map, this.mode, { onUpdate: () => this._updateInfo() });
     StatsOverlay.init(this.map, this.mode);
     ScaleOverlay.init(this.map, this.mode);
     if (this.mode === 'image') ImageCrop.init();
@@ -778,6 +779,10 @@ const App = {
       case 'note':
         History.push();
         Notes.addNote(lngLat);
+        break;
+
+      case 'highlight':
+        Highlights.addVertex(lngLat, e.point);
         break;
 
       case 'scale':
@@ -2370,8 +2375,9 @@ const App = {
         const hasWorkers = typeof Workers !== 'undefined' && Array.isArray(Workers.stations) && Workers.stations.length > 0;
         const hasArrows = typeof Arrows !== 'undefined' && Array.isArray(Arrows.arrows) && Arrows.arrows.length > 0;
         const hasImageLayers = typeof ImageLayers !== 'undefined' && Array.isArray(ImageLayers._layers) && ImageLayers._layers.length > 0;
+        const hasHighlights = typeof Highlights !== 'undefined' && Array.isArray(Highlights._areas) && Highlights._areas.length > 0;
 
-        const hasElements = hasCones || hasDL1 || hasExtraLines || hasMeasurements || hasNotes || hasObstacles || hasWorkers || hasArrows || hasImageLayers;
+        const hasElements = hasCones || hasDL1 || hasExtraLines || hasMeasurements || hasNotes || hasObstacles || hasWorkers || hasArrows || hasImageLayers || hasHighlights;
 
         // Only ask for confirmation if there's something to clear
         if (hasElements) {
@@ -2389,6 +2395,7 @@ const App = {
           if (hasWorkers && typeof Workers !== 'undefined' && Workers.clearAll) Workers.clearAll();
           if (hasArrows && typeof Arrows !== 'undefined' && Arrows.clearAll) Arrows.clearAll();
           if (typeof ImageLayers !== 'undefined' && ImageLayers.loadData) ImageLayers.loadData([]);
+          if (typeof Highlights !== 'undefined' && Highlights.clearAll) Highlights.clearAll();
         } catch (e) {}
 
         if (typeof Selection !== 'undefined' && Selection.clear) Selection.clear();
@@ -2472,6 +2479,11 @@ const App = {
       this._finishConeStart = null;
       this._finishConeCone1Id = null;
       this._hidePreviewLine();
+    }
+
+    // Cancel in-progress highlight area if switching away
+    if (this.activeTool === 'highlight' && tool !== 'highlight') {
+      Highlights.cancelCurrent();
     }
 
     // Re-enable map dragging when leaving select mode
@@ -2887,7 +2899,7 @@ const App = {
         if (!cone.clearBackground) {
           ctx.beginPath();
           ctx.rect(-tw / 2, -th / 2, tw, th);
-          ctx.fillStyle = 'rgba(120, 120, 140, 0.8)';
+          ctx.fillStyle = Cones._buildTrailerBg(cone);
           ctx.fill();
           ctx.strokeStyle = '#666';
           ctx.lineWidth = 2 * dpr;
@@ -3271,6 +3283,7 @@ const App = {
     data.finishConePair = this._currentFinishConePair.slice(); // Include finish cone pair
     data.layerVisibility = Layers.getVisibility();
     data.imageLayers = ImageLayers.getData();
+    data.highlights = Highlights.getData();
     data.statsOverlay = StatsOverlay.getData();
     data.scaleOverlay = ScaleOverlay.getData();
     if (this.mode === 'image' && this._backgroundDPI && this._backgroundDPI !== 96) {
@@ -3335,9 +3348,10 @@ const App = {
     if (data.obstacles) Obstacles.loadData(data.obstacles);
     if (data.workers) Workers.loadData(data.workers);
     if (data.imageLayers) ImageLayers.loadData(data.imageLayers);
+    if (data.highlights) Highlights.loadData(data.highlights);
     if (data.statsOverlay) StatsOverlay.loadData(data.statsOverlay);
     if (data.scaleOverlay) ScaleOverlay.loadData(data.scaleOverlay);
-    // Restore layer visibility after all dynamic layers (imageLayers, extraDrivingLines)
+    // Restore layer visibility after all dynamic layers (imageLayers, extraDrivingLines, highlights)
     // have been created so their entries exist in Layers._layers.
     if (data.layerVisibility) Layers.loadVisibility(data.layerVisibility);
     if (data.backgroundImage && this.mode === 'image') {

@@ -624,6 +624,11 @@ const ImageMap = {
     const ctx = this._lineCanvas.getContext('2d');
     ctx.clearRect(0, 0, this._lineCanvas.width, this._lineCanvas.height);
 
+    // Draw highlight area fills first so they render below driving lines
+    if (typeof Highlights !== 'undefined') {
+      Highlights.drawOnCanvas(ctx);
+    }
+
     const lineSources = [
       { sourceId: 'driving-line-source',  color: '#060707', layerKey: 'drivingLine' },
     ];

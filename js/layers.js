@@ -72,8 +72,73 @@ const Layers = {
         span.addEventListener('click', (e) => e.preventDefault());
       }
 
+      if (key.startsWith('highlightArea_')) {
+        span.contentEditable = 'true';
+        span.spellcheck = false;
+        span.className = 'layer-label-editable';
+        span.title = 'Click to rename';
+        span.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); span.blur(); }
+          if (e.key === 'Escape') { span.textContent = layer.label; span.blur(); }
+        });
+        span.addEventListener('blur', () => {
+          const newLabel = span.textContent.trim() || layer.label;
+          span.textContent = newLabel;
+          layer.label = newLabel;
+          const id = parseInt(key.slice('highlightArea_'.length), 10);
+          const area = typeof Highlights !== 'undefined' ? Highlights._areas.find(a => a.id === id) : null;
+          if (area) area.label = newLabel;
+        });
+        span.addEventListener('mousedown', (e) => e.stopPropagation());
+        span.addEventListener('click', (e) => e.preventDefault());
+      }
+
       row.appendChild(cb);
       row.appendChild(span);
+
+      if (key.startsWith('highlightArea_')) {
+        const areaId = parseInt(key.slice('highlightArea_'.length), 10);
+        const colorInput = document.createElement('input');
+        colorInput.type = 'color';
+        colorInput.className = 'highlight-color-input';
+        colorInput.title = 'Pick area color';
+        const areaRef = typeof Highlights !== 'undefined' ? Highlights._areas.find(a => a.id === areaId) : null;
+        colorInput.value = (areaRef && areaRef.bgColor) || '#b4b4b4';
+        colorInput.addEventListener('mousedown', e => e.stopPropagation());
+        colorInput.addEventListener('input', e => {
+          const area = typeof Highlights !== 'undefined' ? Highlights._areas.find(a => a.id === areaId) : null;
+          if (!area) return;
+          area.bgColor = e.target.value;
+          Highlights._updateAreaColor(area);
+          if (Highlights._onUpdate) Highlights._onUpdate();
+        });
+        colorInput.addEventListener('change', () => {
+          try { if (typeof History !== 'undefined') History.push(); } catch (ex) {}
+        });
+        row.appendChild(colorInput);
+
+        const opacitySlider = document.createElement('input');
+        opacitySlider.type = 'range';
+        opacitySlider.className = 'highlight-opacity-slider';
+        opacitySlider.min = '0';
+        opacitySlider.max = '1';
+        opacitySlider.step = '0.05';
+        opacitySlider.title = 'Area opacity';
+        opacitySlider.value = (areaRef && areaRef.bgOpacity != null) ? areaRef.bgOpacity : 0.3;
+        opacitySlider.addEventListener('mousedown', e => e.stopPropagation());
+        opacitySlider.addEventListener('input', e => {
+          const area = typeof Highlights !== 'undefined' ? Highlights._areas.find(a => a.id === areaId) : null;
+          if (!area) return;
+          area.bgOpacity = parseFloat(e.target.value);
+          Highlights._updateAreaColor(area);
+          if (Highlights._onUpdate) Highlights._onUpdate();
+        });
+        opacitySlider.addEventListener('change', () => {
+          try { if (typeof History !== 'undefined') History.push(); } catch (ex) {}
+        });
+        row.appendChild(opacitySlider);
+      }
+
       return row;
     };
 
@@ -185,6 +250,11 @@ const Layers = {
           if (typeof ImageLayers !== 'undefined') {
             ImageLayers.setVisible(id, visible);
           }
+        } else if (key.startsWith('highlightArea_')) {
+          const id = parseInt(key.slice('highlightArea_'.length), 10);
+          if (typeof Highlights !== 'undefined') {
+            Highlights.setVisible(id, visible);
+          }
         } else if (key.startsWith('drivingLineExtra')) {
           // Extra optional driving line — find instance by index
           const idx = parseInt(key.slice('drivingLineExtra'.length), 10);
@@ -210,6 +280,18 @@ const Layers = {
   /** Check if a layer is visible */
   isVisible(key) {
     return this._layers[key] ? this._layers[key].visible : true;
+  },
+
+  /** Add a dynamic highlight area entry to the panel */
+  addHighlightAreaLayer(id, label) {
+    this._layers[`highlightArea_${id}`] = { label: label || `Highlight Area ${id}`, visible: true };
+    this._renderPanel();
+  },
+
+  /** Remove a dynamic highlight area entry from the panel */
+  removeHighlightAreaLayer(id) {
+    delete this._layers[`highlightArea_${id}`];
+    this._renderPanel();
   },
 
   /** Add a dynamic image layer entry to the panel */
