@@ -119,8 +119,22 @@ const ImageLayers = {
 
     // On mousemove, sample the alpha at the cursor position relative to the image.
     // If it is fully transparent, disable pointer-events so clicks fall through.
+    // Exception: use a geometric check for child controls (resize handle, delete button)
+    // because when el has pointer-events:none the controls inherit it and e.target
+    // will never be the control — so we must compare cursor coords to their bounding rects.
     const checkHit = (e) => {
       if (!hitReady) return;
+      // Geometric guard: if cursor is physically over a child control, keep interactive.
+      // getBoundingClientRect() works regardless of pointer-events state.
+      const hr = resizeHandle.getBoundingClientRect();
+      const dr = deleteBtn.getBoundingClientRect();
+      if (
+        (e.clientX >= hr.left && e.clientX <= hr.right && e.clientY >= hr.top  && e.clientY <= hr.bottom) ||
+        (e.clientX >= dr.left && e.clientX <= dr.right && e.clientY >= dr.top  && e.clientY <= dr.bottom)
+      ) {
+        el.style.pointerEvents = 'auto';
+        return;
+      }
       const rect = el.getBoundingClientRect();
       const nx = (e.clientX - rect.left)  / rect.width;
       const ny = (e.clientY - rect.top)   / rect.height;
