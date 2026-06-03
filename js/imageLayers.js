@@ -74,6 +74,7 @@ const ImageLayers = {
       halfW,
       halfH,
       visible: true,
+      opacity: 1,
       el: null,
       label: label || `Image ${id}`,
     };
@@ -384,6 +385,16 @@ const ImageLayers = {
     }
   },
 
+  setOpacity(id, opacity) {
+    const layer = this._layers.find(l => l.id === id);
+    if (!layer) return;
+    layer.opacity = opacity;
+    if (layer.el) {
+      const img = layer.el.querySelector('img');
+      if (img) img.style.opacity = opacity;
+    }
+  },
+
   /** Serialize layer data for save/export */
   getData() {
     return this._layers.map(l => ({
@@ -394,6 +405,7 @@ const ImageLayers = {
       halfH: l.halfH,
       visible: l.visible,
       label: l.label,
+      ...(l.opacity != null && l.opacity !== 1 ? { opacity: l.opacity } : {}),
     }));
   },
 
@@ -411,6 +423,7 @@ const ImageLayers = {
         halfW: d.halfW,
         halfH: d.halfH,
         visible: d.visible !== false,
+        opacity: d.opacity != null ? d.opacity : 1,
         el: null,
         label: d.label || `Image ${d.id}`,
       };
@@ -422,6 +435,10 @@ const ImageLayers = {
       }
       if (!layer.visible && layer.el) {
         layer.el.style.display = 'none';
+      }
+      if (layer.opacity !== 1 && layer.el) {
+        const img = layer.el.querySelector('img');
+        if (img) img.style.opacity = layer.opacity;
       }
     }
   },

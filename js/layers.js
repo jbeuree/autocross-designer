@@ -96,6 +96,30 @@ const Layers = {
       row.appendChild(cb);
       row.appendChild(span);
 
+      if (key.startsWith('imageLayer_')) {
+        const imgId = parseInt(key.slice('imageLayer_'.length), 10);
+        const imgLayerRef = typeof ImageLayers !== 'undefined' ? ImageLayers._layers.find(l => l.id === imgId) : null;
+        const opacitySlider = document.createElement('input');
+        opacitySlider.type = 'range';
+        opacitySlider.className = 'image-layer-opacity-slider';
+        opacitySlider.min = '0';
+        opacitySlider.max = '1';
+        opacitySlider.step = '0.05';
+        opacitySlider.title = 'Image opacity';
+        opacitySlider.value = (imgLayerRef && imgLayerRef.opacity != null) ? imgLayerRef.opacity : 1;
+        opacitySlider.addEventListener('mousedown', e => e.stopPropagation());
+        opacitySlider.addEventListener('input', e => {
+          if (typeof ImageLayers !== 'undefined') {
+            ImageLayers.setOpacity(imgId, parseFloat(e.target.value));
+          }
+          if (typeof App !== 'undefined' && App._onUpdate) App._onUpdate();
+        });
+        opacitySlider.addEventListener('change', () => {
+          try { if (typeof History !== 'undefined') History.push(); } catch (ex) {}
+        });
+        row.appendChild(opacitySlider);
+      }
+
       if (key.startsWith('highlightArea_')) {
         const areaId = parseInt(key.slice('highlightArea_'.length), 10);
         const colorInput = document.createElement('input');
