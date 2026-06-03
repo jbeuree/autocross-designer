@@ -2506,6 +2506,9 @@ const App = {
     this._deselectCone();
     Selection.clear();
 
+    // Enable/disable image layer interactivity based on tool
+    document.body.classList.toggle('image-layers-active', tool === 'select');
+
     // Update active button style
     document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.tool === tool);

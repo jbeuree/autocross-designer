@@ -125,6 +125,8 @@ const ImageLayers = {
     // will never be the control — so we must compare cursor coords to their bounding rects.
     const checkHit = (e) => {
       if (!hitReady) return;
+      // Only do hit-testing when the select tool is active
+      if (typeof App !== 'undefined' && App.activeTool !== 'select') return;
       // Geometric guard: if cursor is physically over a child control, keep interactive.
       // getBoundingClientRect() works regardless of pointer-events state.
       const hr = resizeHandle.getBoundingClientRect();
@@ -255,9 +257,9 @@ const ImageLayers = {
       if (e.target.classList.contains('image-layer-resize-handle')) return;
       if (e.target.classList.contains('image-layer-delete-btn')) return;
       if (e.button !== 0) return;
+      if (typeof App !== 'undefined' && App.activeTool !== 'select') return;
       e.stopPropagation();
       e.preventDefault();
-      if (typeof App !== 'undefined') App._setActiveTool('select');
       dragging = true;
       startX = e.clientX;
       startY = e.clientY;
@@ -300,9 +302,9 @@ const ImageLayers = {
 
     const onMouseDown = (e) => {
       if (e.button !== 0) return;
+      if (typeof App !== 'undefined' && App.activeTool !== 'select') return;
       e.stopPropagation();
       e.preventDefault();
-      if (typeof App !== 'undefined') App._setActiveTool('select');
       resizing = true;
       startX = e.clientX;
       startY = e.clientY;

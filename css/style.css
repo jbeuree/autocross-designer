@@ -1603,10 +1603,15 @@ startfinish-btn {
 .image-layer-overlay {
   position: absolute;
   box-sizing: border-box;
-  cursor: move;
   overflow: visible;
+  /* Non-interactive by default; pointer-events enabled only in select mode */
+  pointer-events: none;
 }
-.image-layer-overlay:hover {
+body.image-layers-active .image-layer-overlay {
+  pointer-events: auto;
+  cursor: move;
+}
+body.image-layers-active .image-layer-overlay:hover {
   outline: 1px dashed rgba(59, 130, 246, 0.7);
 }
 .image-layer-overlay img {
@@ -1645,8 +1650,8 @@ startfinish-btn {
   transition: opacity 0.15s 2s;
   z-index: 1;
 }
-.image-layer-overlay:hover .image-layer-resize-handle,
-.image-layer-overlay:hover .image-layer-delete-btn {
+body.image-layers-active .image-layer-overlay:hover .image-layer-resize-handle,
+body.image-layers-active .image-layer-overlay:hover .image-layer-delete-btn {
   opacity: 1;
   transition: opacity 0.15s 0s;
 }
