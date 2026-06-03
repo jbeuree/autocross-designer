@@ -75,6 +75,7 @@ const ImageLayers = {
       halfH,
       visible: true,
       opacity: 1,
+      rotation: 0,
       el: null,
       label: label || `Image ${id}`,
     };
@@ -131,9 +132,11 @@ const ImageLayers = {
       // getBoundingClientRect() works regardless of pointer-events state.
       const hr = resizeHandle.getBoundingClientRect();
       const dr = deleteBtn.getBoundingClientRect();
+      const rr = rotateHandle.getBoundingClientRect();
       if (
         (e.clientX >= hr.left && e.clientX <= hr.right && e.clientY >= hr.top  && e.clientY <= hr.bottom) ||
-        (e.clientX >= dr.left && e.clientX <= dr.right && e.clientY >= dr.top  && e.clientY <= dr.bottom)
+        (e.clientX >= dr.left && e.clientX <= dr.right && e.clientY >= dr.top  && e.clientY <= dr.bottom) ||
+        (e.clientX >= rr.left && e.clientX <= rr.right && e.clientY >= rr.top  && e.clientY <= rr.bottom)
       ) {
         el.style.pointerEvents = 'auto';
         return;
@@ -163,6 +166,11 @@ const ImageLayers = {
     resizeHandle.className = 'image-layer-resize-handle';
     el.appendChild(resizeHandle);
 
+    // Top-center rotate handle
+    const rotateHandle = document.createElement('div');
+    rotateHandle.className = 'image-layer-rotate-handle';
+    el.appendChild(rotateHandle);
+
     // Top-right delete button
     const deleteBtn = document.createElement('div');
     deleteBtn.className = 'image-layer-delete-btn';
@@ -173,6 +181,7 @@ const ImageLayers = {
 
     this._setupDrag(el, layer);
     this._setupResize(resizeHandle, layer);
+    this._setupRotate(rotateHandle, layer);
 
     deleteBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -231,6 +240,13 @@ const ImageLayers = {
       layer.el.style.width  = Math.max(10, br.x - tl.x) + 'px';
       layer.el.style.height = Math.max(10, br.y - tl.y) + 'px';
     }
+    this._applyTransform(layer);
+  },
+
+  /** Apply CSS rotation transform to the overlay element */
+  _applyTransform(layer) {
+    if (!layer.el) return;
+    layer.el.style.transform = layer.rotation ? `rotate(${layer.rotation}deg)` : '';
   },
 
   /** Reproject all overlays (called on map move/zoom in map mode) */
@@ -256,6 +272,7 @@ const ImageLayers = {
     const onMouseDown = (e) => {
       if (e.target.classList.contains('image-layer-resize-handle')) return;
       if (e.target.classList.contains('image-layer-delete-btn')) return;
+      if (e.target.classList.contains('image-layer-rotate-handle')) return;
       if (e.button !== 0) return;
       if (typeof App !== 'undefined' && App.activeTool !== 'select') return;
       e.stopPropagation();
@@ -363,6 +380,46 @@ const ImageLayers = {
     handle.addEventListener('mousedown', onMouseDown);
   },
 
+  /** Set up drag-to-rotate on the top-center handle */
+  _setupRotate(handle, layer) {
+    let rotating = false;
+    let startAngle, startRotation, centerX, centerY;
+
+    const onMouseDown = (e) => {
+      if (e.button !== 0) return;
+      if (typeof App !== 'undefined' && App.activeTool !== 'select') return;
+      e.stopPropagation();
+      e.preventDefault();
+      rotating = true;
+      // getBoundingClientRect center is stable under rotation (rotation doesn't move center)
+      const rect = layer.el.getBoundingClientRect();
+      centerX = (rect.left + rect.right) / 2;
+      centerY = (rect.top + rect.bottom) / 2;
+      startAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+      startRotation = layer.rotation || 0;
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    };
+
+    const onMouseMove = (e) => {
+      if (!rotating) return;
+      const currentAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+      const delta = currentAngle - startAngle;
+      layer.rotation = startRotation + delta * (180 / Math.PI);
+      this._applyTransform(layer);
+    };
+
+    const onMouseUp = () => {
+      if (!rotating) return;
+      rotating = false;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      try { if (typeof History !== 'undefined') History.push(); } catch (ex) {}
+    };
+
+    handle.addEventListener('mousedown', onMouseDown);
+  },
+
   /** Remove a layer by id */
   remove(id) {
     const idx = this._layers.findIndex(l => l.id === id);
@@ -408,6 +465,7 @@ const ImageLayers = {
       visible: l.visible,
       label: l.label,
       ...(l.opacity != null && l.opacity !== 1 ? { opacity: l.opacity } : {}),
+      ...(l.rotation ? { rotation: l.rotation } : {}),
     }));
   },
 
@@ -426,6 +484,7 @@ const ImageLayers = {
         halfH: d.halfH,
         visible: d.visible !== false,
         opacity: d.opacity != null ? d.opacity : 1,
+        rotation: d.rotation || 0,
         el: null,
         label: d.label || `Image ${d.id}`,
       };
@@ -441,6 +500,9 @@ const ImageLayers = {
       if (layer.opacity !== 1 && layer.el) {
         const img = layer.el.querySelector('img');
         if (img) img.style.opacity = layer.opacity;
+      }
+      if (layer.rotation && layer.el) {
+        this._applyTransform(layer);
       }
     }
   },

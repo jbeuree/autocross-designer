@@ -2740,10 +2740,23 @@ const App = {
       let maxX = mapCanvas.width, maxY = mapCanvas.height;
       for (const layer of ImageLayers._layers) {
         if (!layer.visible) continue;
-        minX = Math.min(minX, layer.lngLat[0] - layer.halfW);
-        minY = Math.min(minY, layer.lngLat[1] - layer.halfH);
-        maxX = Math.max(maxX, layer.lngLat[0] + layer.halfW);
-        maxY = Math.max(maxY, layer.lngLat[1] + layer.halfH);
+        if (layer.rotation) {
+          const rad = layer.rotation * Math.PI / 180;
+          const cos = Math.cos(rad), sin = Math.sin(rad);
+          const cx = layer.lngLat[0], cy = layer.lngLat[1];
+          [[-layer.halfW, -layer.halfH], [layer.halfW, -layer.halfH],
+           [layer.halfW,  layer.halfH], [-layer.halfW,  layer.halfH]].forEach(([x, y]) => {
+            const rx = cx + x * cos - y * sin;
+            const ry = cy + x * sin + y * cos;
+            minX = Math.min(minX, rx); minY = Math.min(minY, ry);
+            maxX = Math.max(maxX, rx); maxY = Math.max(maxY, ry);
+          });
+        } else {
+          minX = Math.min(minX, layer.lngLat[0] - layer.halfW);
+          minY = Math.min(minY, layer.lngLat[1] - layer.halfH);
+          maxX = Math.max(maxX, layer.lngLat[0] + layer.halfW);
+          maxY = Math.max(maxY, layer.lngLat[1] + layer.halfH);
+        }
       }
       originOffsetX = Math.floor(Math.max(0, -minX));
       originOffsetY = Math.floor(Math.max(0, -minY));
@@ -2775,17 +2788,25 @@ const App = {
       if (!layer.visible) continue;
       const img = layer.el ? layer.el.querySelector('img') : null;
       if (!img || !img.complete) continue;
+      ctx.save();
+      if (layer.opacity != null && layer.opacity !== 1) ctx.globalAlpha = layer.opacity;
       if (this.mode === 'image') {
-        ctx.drawImage(img,
-          layer.lngLat[0] - layer.halfW, layer.lngLat[1] - layer.halfH,
-          layer.halfW * 2, layer.halfH * 2);
+        const cx = layer.lngLat[0], cy = layer.lngLat[1];
+        ctx.translate(cx, cy);
+        if (layer.rotation) ctx.rotate(layer.rotation * Math.PI / 180);
+        ctx.drawImage(img, -layer.halfW, -layer.halfH, layer.halfW * 2, layer.halfH * 2);
       } else {
         const tl = this.map.project({ lng: layer.lngLat[0] - layer.halfW, lat: layer.lngLat[1] + layer.halfH });
         const br = this.map.project({ lng: layer.lngLat[0] + layer.halfW, lat: layer.lngLat[1] - layer.halfH });
-        ctx.drawImage(img,
-          tl.x * dpr, tl.y * dpr,
-          Math.max(1, (br.x - tl.x) * dpr), Math.max(1, (br.y - tl.y) * dpr));
+        const cx = (tl.x + br.x) / 2 * dpr;
+        const cy = (tl.y + br.y) / 2 * dpr;
+        const w = Math.max(1, (br.x - tl.x) * dpr);
+        const h = Math.max(1, (br.y - tl.y) * dpr);
+        ctx.translate(cx, cy);
+        if (layer.rotation) ctx.rotate(layer.rotation * Math.PI / 180);
+        ctx.drawImage(img, -w / 2, -h / 2, w, h);
       }
+      ctx.restore();
     }
 
     // Draw connecting lines for cone pairs

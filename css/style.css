@@ -1632,6 +1632,20 @@ body.image-layers-active .image-layer-overlay:hover {
   opacity: 0;
   transition: opacity 0.15s 2s;
 }
+.image-layer-rotate-handle {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 16px;
+  background: #3b82f6;
+  border-radius: 50%;
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.15s 2s;
+  z-index: 1;
+}
 .image-layer-delete-btn {
   position: absolute;
   top: 0;
@@ -1651,6 +1665,7 @@ body.image-layers-active .image-layer-overlay:hover {
   z-index: 1;
 }
 body.image-layers-active .image-layer-overlay:hover .image-layer-resize-handle,
+body.image-layers-active .image-layer-overlay:hover .image-layer-rotate-handle,
 body.image-layers-active .image-layer-overlay:hover .image-layer-delete-btn {
   opacity: 1;
   transition: opacity 0.15s 0s;
