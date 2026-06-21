@@ -285,6 +285,13 @@ const ImageCrop = {
       Measurements.updateAllLabels();
     }
     // CourseOutline handling removed
+    if (typeof Highlights !== 'undefined') {
+      for (const area of Highlights._areas) {
+        for (const v of area.vertices) { v[0] += dx; v[1] += dy; }
+      }
+      for (const v of Highlights._currentVertices) { v[0] += dx; v[1] += dy; }
+      ImageMap._redrawLineCanvas();
+    }
     if (typeof ImageLayers !== 'undefined') {
       for (const layer of ImageLayers._layers) {
         layer.lngLat = [layer.lngLat[0] + dx, layer.lngLat[1] + dy];
