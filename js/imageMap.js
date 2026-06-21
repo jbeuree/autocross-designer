@@ -85,17 +85,6 @@ class ImageMarker {
 
   _updatePosition() {
     if (!this._lngLat) return;
-    // Clamp marker position to image bounds (image pixel coordinates)
-    if (this._map && this._map._imageWidth && this._map._imageHeight) {
-      const maxX = this._map._imageWidth;
-      const maxY = this._map._imageHeight;
-      if (typeof this._lngLat.lng === 'number') {
-        this._lngLat.lng = Math.max(0, Math.min(maxX, this._lngLat.lng));
-      }
-      if (typeof this._lngLat.lat === 'number') {
-        this._lngLat.lat = Math.max(0, Math.min(maxY, this._lngLat.lat));
-      }
-    }
     // Position in image pixel coordinates — the wrapper's CSS transform handles pan/zoom
     this._container.style.left = this._lngLat.lng + 'px';
     this._container.style.top = this._lngLat.lat + 'px';
