@@ -3013,12 +3013,15 @@ const App = {
         ctx.save();
         ctx.beginPath();
         ctx.arc(wx, wy, 12 * scale, 0, Math.PI * 2);
-        ctx.fillStyle = blackCones ? '#000' :'#3b82f6';
-        ctx.fill();
-        ctx.strokeStyle = blackCones ? '#000' :'#1d4ed8';
+        if (!blackCones) {
+          ctx.fillStyle = '#3b82f6';
+          ctx.fill();
+        }
+        ctx.strokeStyle = '#000';
         ctx.lineWidth = 2 * scale;
         ctx.stroke();
-        ctx.fillStyle = '#fff';
+        ctx.fillStyle = '#000';
+        if (!blackCones) ctx.fillStyle = '#fff';
         ctx.font = `bold ${11 * scale}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
