@@ -2721,9 +2721,6 @@ const App = {
     confirmBtn.addEventListener('click', () => {
       dialog.classList.add('hidden');
       const targetDPI = this.mode === 'image' ? (parseInt(dpiInput && dpiInput.value) || this._backgroundDPI || 96) : 96;
-      if (this.mode === 'image' && targetDPI > 0) {
-        this._backgroundDPI = targetDPI;
-      }
       this._captureImage(includeGrid.checked, blackCones.checked, targetDPI);
     });
   },
