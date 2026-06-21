@@ -2710,7 +2710,7 @@ const App = {
       includeGrid.checked = Grid.isActive();
       // Only show DPI option in image mode
       if (dpiRow) dpiRow.style.display = this.mode === 'image' ? '' : 'none';
-      if (dpiInput) dpiInput.value = this._backgroundDPI || 96;
+      if (dpiInput) dpiInput.value = this._backgroundDPI || 800;
       dialog.classList.remove('hidden');
     });
 
